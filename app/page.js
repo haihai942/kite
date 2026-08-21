@@ -8,12 +8,12 @@ const styles = {
   },
   kicker: {
     fontFamily: "'Courier New', monospace",
-    color: "#2EE6A8",
+    color: "#211ee6",
     fontSize: 14,
     letterSpacing: 1,
   },
   title: {
-    fontSize: 48,
+    fontSize: 30,
     fontWeight: 700,
     margin: "16px 0 12px",
     lineHeight: 1.1,
@@ -75,9 +75,7 @@ export default function Home() {
       <p style={styles.count}>entries in the archive: 0 (for now)</p>
 
       <footer style={styles.footer}>
-        Built in ICT 340 — Vibe Coding, American University of Phnom Penh, Fall
-        2026. This archive is under construction all semester. Come back in
-        December.
+        Built in ICT 340 — Vibe Coding, Archived Kites.
       </footer>
     </main>
   );
