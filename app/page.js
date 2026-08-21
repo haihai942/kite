@@ -75,7 +75,7 @@ export default function Home() {
       <p style={styles.count}>entries in the archive: 0 (for now)</p>
 
       <footer style={styles.footer}>
-        Built in ICT 340 — Vibe Coding, Archived Kites.
+        Built in ICT 340 — Vibe Coding, Archived Kites new thing.
       </footer>
     </main>
   );
