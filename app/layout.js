@@ -12,7 +12,7 @@ export default function RootLayout({ children }) {
         style={{
           margin: 0,
           backgroundColor: "#F0F8FF",
-          color: "#1E3A8A",
+          color: "#6387eb",
           fontFamily:
             "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
           minHeight: "100vh",

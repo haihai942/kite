@@ -1,4 +1,7 @@
+// Component for displaying individual archive entries
+// Receives props: title, contributor, place, description, and image
 export default function EntryCard({ title, contributor, place, description, image }) {
+  // Styles for different parts of the card
   const cardStyle = {
     marginBottom: 24,
     padding: 20,
@@ -25,7 +28,7 @@ export default function EntryCard({ title, contributor, place, description, imag
     lineHeight: 1.6,
     color: "#E0E0E0",
   };
-
+// NEW: Styles for image container and image element  const imageWrapStyle = {
   const imageWrapStyle = {
     marginBottom: 16,
     overflow: "hidden",
