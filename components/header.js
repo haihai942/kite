@@ -2,35 +2,69 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams, usePathname } from "next/navigation";
 
-export default function Header({ locale, setLocale }) {
+export default function Header({ locale }) {
   const [searchTerm, setSearchTerm] = useState("");
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const pathname = usePathname();
+
+  // Helper to maintain existing query parameters (like language)
+  const buildUrl = (targetPath, newParams = {}) => {
+    const params = new URLSearchParams(searchParams.toString());
+    Object.entries(newParams).forEach(([key, val]) => {
+      if (val !== undefined && val !== null) {
+        params.set(key, val);
+      } else {
+        params.delete(key);
+      }
+    });
+    const queryString = params.toString();
+    return queryString ? `${targetPath}?${queryString}` : targetPath;
+  };
 
   const handleSearch = (e) => {
     e.preventDefault();
     if (searchTerm.trim()) {
-      router.push(`/browse?q=${encodeURIComponent(searchTerm.trim())}`);
+      // Perform search and keep language
+      const lang = searchParams.get("lang");
+      const url = lang 
+        ? `/browse?q=${encodeURIComponent(searchTerm.trim())}&lang=${lang}`
+        : `/browse?q=${encodeURIComponent(searchTerm.trim())}`;
+      router.push(url);
       setSearchTerm("");
     }
+  };
+
+  const toggleLanguage = () => {
+    const nextLang = locale === "en" ? "km" : "en";
+    router.push(buildUrl(pathname, { lang: nextLang }));
+  };
+
+  // Helper for direct page navigation while preserving ONLY language parameter
+  const getCleanPageUrl = (targetPath) => {
+    const lang = searchParams.get("lang");
+    return lang ? `${targetPath}?lang=${lang}` : targetPath;
   };
 
   return (
     <header style={styles.headerContainer}>
       <div style={styles.headerInner}>
-        {/* Brand Logo / Title */}
-        <Link href="/" style={styles.brand}>
+        {/* Brand Logo - Clears search query */}
+        <Link href={getCleanPageUrl("/")} style={styles.brand}>
           KHMER ARCHIVE
         </Link>
 
-        {/* Right Group: Nav Links, Search Input & Language Toggle */}
+        {/* Right Group */}
         <div style={styles.rightGroup}>
           <nav style={styles.navLinks}>
-            <Link href="/" style={styles.link}>
+            {/* Home - Clears search query */}
+            <Link href={getCleanPageUrl("/")} style={styles.link}>
               Home
             </Link>
-            <Link href="/browse" style={styles.link}>
+            {/* Browse - Explicitly clears 'q' so ALL entries are shown */}
+            <Link href={getCleanPageUrl("/browse")} style={styles.link}>
               Browse
             </Link>
           </nav>
@@ -45,10 +79,7 @@ export default function Header({ locale, setLocale }) {
             />
           </form>
 
-          <button
-            onClick={() => setLocale(locale === "en" ? "km" : "en")}
-            style={styles.langButton}
-          >
+          <button onClick={toggleLanguage} style={styles.langButton}>
             {locale === "en" ? "🇰🇭 ភាសាខ្មែរ" : "🇬🇧 English"}
           </button>
         </div>
@@ -80,7 +111,7 @@ const styles = {
     justifyContent: "space-between",
     gap: 16,
     flexWrap: "wrap",
-    minHeight: 64, // Prevents vertical collapse
+    minHeight: 64,
     boxSizing: "border-box",
   },
   brand: {
@@ -124,7 +155,7 @@ const styles = {
     color: "#1E3A8A",
     outline: "none",
     width: 140,
-    height: 36, // Explicit height matching button
+    height: 36,
     boxSizing: "border-box",
   },
   langButton: {
@@ -142,8 +173,8 @@ const styles = {
     display: "inline-flex",
     alignItems: "center",
     justifyContent: "center",
-    height: 36, // Locked height
-    minWidth: 115, // Locks width so changing flag/text doesn't jump
+    height: 36,
+    minWidth: 115,
     boxSizing: "border-box",
   },
 };

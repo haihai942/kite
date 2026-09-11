@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, Suspense } from "react";
+import { useMemo, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import Header from "../../components/header.js";
 import { entries } from "../../data/entry.js";
@@ -8,19 +8,18 @@ import collection from "../../collection.config.js";
 import EntryCard from "../../components/entryCard.js";
 
 function BrowseContent() {
-  const [locale, setLocale] = useState("en");
   const searchParams = useSearchParams();
 
+  // Read query & locale directly from URL params
   const query = searchParams.get("q") || "";
+  const locale = searchParams.get("lang") || "en";
 
-  // Get localized text helper for entries and collection
   const getText = (field) => {
     if (!field) return "";
     if (typeof field === "string") return field;
     return field[locale] || field.en || "";
   };
 
-  // Joins EN and KM strings so search works in both languages
   const getCombinedEntryText = (entry) => {
     const title = `${entry.title?.en || ""} ${entry.title?.km || ""}`;
     const contributor = `${entry.contributor?.en || ""} ${entry.contributor?.km || ""}`;
@@ -29,7 +28,6 @@ function BrowseContent() {
     return `${title} ${contributor} ${place} ${description}`.toLowerCase();
   };
 
-  // 1. Filter for exact matches
   const matches = entries.filter((entry) => {
     if (!query.trim()) return true;
     return getCombinedEntryText(entry).includes(query.toLowerCase());
@@ -37,27 +35,22 @@ function BrowseContent() {
 
   const hasMatches = matches.length > 0;
 
-  // 2. Pick random entries as suggestions if no matches found
   const randomSuggestions = useMemo(() => {
     if (hasMatches) return [];
     return [...entries].sort(() => 0.5 - Math.random()).slice(0, 2);
   }, [hasMatches, query]);
 
-  // Final list of entries to display
   const displayEntries = hasMatches ? matches : randomSuggestions;
 
   return (
     <>
-      <Header locale={locale} setLocale={setLocale} />
+      <Header locale={locale} />
 
       <main style={styles.wrap}>
         <div style={styles.header}>
           <p style={styles.kicker}>KHMER LIVING ARCHIVE</p>
-          <h1 style={styles.title}>
-            {collection.name?.en || collection.name}
-          </h1>
+          <h1 style={styles.title}>{collection.name?.en || collection.name}</h1>
 
-          {/* Dynamic Search Heading strictly in English */}
           <p style={styles.description}>
             {!query ? (
               "Showing all entries in the archive"
@@ -72,11 +65,8 @@ function BrowseContent() {
           </p>
         </div>
 
-        <p style={styles.count}>
-          entries in view: {displayEntries.length}
-        </p>
+        <p style={styles.count}>entries in view: {displayEntries.length}</p>
 
-        {/* Display List - Entry fields switch language based on locale */}
         {displayEntries.map((entry) => (
           <EntryCard
             key={entry.id || entry.title?.en}

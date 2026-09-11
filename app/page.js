@@ -1,16 +1,18 @@
 "use client";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { Suspense } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import Header from "../components/header.js";
 import collection from "../collection.config.js";
 import { entries } from "../data/entry.js";
 
-export default function Home() {
-  const [locale, setLocale] = useState("en");
+function HomeContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
 
-  // Extract localized entry string or default to English
+  // Read locale directly from URL query parameters (defaults to 'en')
+  const locale = searchParams.get("lang") || "en";
+
   const getEntryText = (field) => {
     if (!field) return "";
     if (typeof field === "string") return field;
@@ -18,23 +20,21 @@ export default function Home() {
   };
 
   const goToDetail = (titleText) => {
-    router.push(`/browse?q=${encodeURIComponent(titleText)}`);
+    const langParam = locale !== "en" ? `&lang=${locale}` : "";
+    router.push(`/browse?q=${encodeURIComponent(titleText)}${langParam}`);
   };
 
   return (
     <>
-      {/* Global Header with Language Switcher & Search */}
-      <Header locale={locale} setLocale={setLocale} />
+      <Header locale={locale} />
 
       <main style={styles.wrap}>
-        {/* Fixed English Header Text */}
         <p style={styles.kicker}>KHMER LIVING ARCHIVE</p>
         <h1 style={styles.title}>{collection.name?.en || collection.name}</h1>
         <p style={styles.description}>
           {collection.description?.en || collection.description}
         </p>
 
-        {/* Fixed English Metadata Cards */}
         <div style={styles.card}>
           <p style={styles.cardLabel}>CURATED BY</p>
           <p style={styles.cardValue}>
@@ -50,7 +50,6 @@ export default function Home() {
 
         <p style={styles.count}>entries in the archive: {entries.length}</p>
 
-        {/* Entry Preview Cards (Only title toggles language) */}
         {entries.map((entry, index) => {
           const itemTitle = getEntryText(entry.title) || "Untitled";
 
@@ -81,6 +80,14 @@ export default function Home() {
         </footer>
       </main>
     </>
+  );
+}
+
+export default function Home() {
+  return (
+    <Suspense fallback={<div style={{ padding: 40, textAlign: "center" }}>Loading...</div>}>
+      <HomeContent />
+    </Suspense>
   );
 }
 
@@ -153,7 +160,7 @@ const styles = {
     gap: 12,
     cursor: "pointer",
     boxSizing: "border-box",
-    transition: "transform 0.15s ease, box-shadow 0.15s ease",
+    transition: "transform 0.15s ease, boxShadow 0.15s ease",
   },
   imageWrapper: {
     width: "100%",
@@ -192,7 +199,13 @@ const styles = {
   footer: {
     marginTop: 64,
     paddingTop: 24,
-    borderTop: "1px solid #93C5FD",
+    borderWidth: "1px",
+    borderStyle: "solid",
+    borderColor: "#93C5FD",
+    borderTopStyle: "solid",
+    borderLeftStyle: "none",
+    borderRightStyle: "none",
+    borderBottomStyle: "none",
     fontSize: 13,
     color: "#64748B",
   },
