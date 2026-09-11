@@ -8,15 +8,15 @@ export default function Header({ locale }) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const pathname = usePathname();
-  
+
   const [searchTerm, setSearchTerm] = useState("");
 
-  // Sync search input if query parameter changes externally
+  // Sync search input if query parameter changes in URL
   useEffect(() => {
     setSearchTerm(searchParams.get("q") || "");
   }, [searchParams]);
 
-  // Helper to maintain existing query parameters
+  // Helper to maintain existing query parameters (like language)
   const buildUrl = (targetPath, newParams = {}) => {
     const params = new URLSearchParams(searchParams.toString());
     Object.entries(newParams).forEach(([key, val]) => {
@@ -32,11 +32,13 @@ export default function Header({ locale }) {
 
   const handleSearch = (e) => {
     e.preventDefault();
-    const query = searchTerm.trim();
+
+    // Clean leading/trailing spaces and collapse multiple inner spaces
+    const cleanQuery = searchTerm.trim().replace(/\s+/g, " ");
     const lang = searchParams.get("lang");
 
     const params = new URLSearchParams();
-    if (query) params.set("q", query);
+    if (cleanQuery) params.set("q", cleanQuery);
     if (lang) params.set("lang", lang);
 
     const queryString = params.toString();

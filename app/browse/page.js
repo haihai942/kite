@@ -11,7 +11,6 @@ function BrowseContent() {
   const searchParams = useSearchParams();
 
   const query = searchParams.get("q") || "";
-  // Always read active language directly from URL search params
   const locale = searchParams.get("lang") || "en";
 
   const getText = (field) => {
@@ -28,9 +27,36 @@ function BrowseContent() {
     return `${title} ${contributor} ${place} ${description}`.toLowerCase();
   };
 
+  // Process search query
+  const cleanQuery = query.trim().toLowerCase();
+  
+  // Extract separated keywords
+  const keywords = cleanQuery.split(/\s+/).filter(Boolean);
+  
+  // Create space-removed version of query (e.g., "archived kites" -> "archivedkites")
+  const queryWithoutSpaces = cleanQuery.replace(/\s+/g, "");
+
   const matches = entries.filter((entry) => {
-    if (!query.trim()) return true;
-    return getCombinedEntryText(entry).includes(query.toLowerCase());
+    if (!cleanQuery) return true;
+
+    const rawText = getCombinedEntryText(entry);
+    const textWithoutSpaces = rawText.replace(/\s+/g, "");
+
+    // 1. Direct match with spaces or space-removed match
+    if (rawText.includes(cleanQuery) || textWithoutSpaces.includes(queryWithoutSpaces)) {
+      return true;
+    }
+
+    // 2. Strict Whole-Word Keyword Matching (\b ensures "pin" won't match "pink")
+    if (keywords.length > 0) {
+      return keywords.every((word) => {
+        const escapedWord = word.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+        const regex = new RegExp(`\\b${escapedWord}\\b`, "i");
+        return regex.test(rawText);
+      });
+    }
+
+    return false;
   });
 
   const hasMatches = matches.length > 0;
@@ -67,9 +93,9 @@ function BrowseContent() {
 
         <p style={styles.count}>entries in view: {displayEntries.length}</p>
 
-        {displayEntries.map((entry) => (
+        {displayEntries.map((entry, index) => (
           <EntryCard
-            key={entry.id || entry.title?.en}
+            key={entry.id || entry.title?.en || index}
             title={getText(entry.title) || "Untitled"}
             contributor={getText(entry.contributor) || "Unknown"}
             place={getText(entry.place) || "Unknown"}
