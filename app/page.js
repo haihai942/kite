@@ -10,7 +10,7 @@ function HomeContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
 
-  // Read locale directly from URL query parameters (defaults to 'en')
+  // Always read active language directly from URL search params
   const locale = searchParams.get("lang") || "en";
 
   const getEntryText = (field) => {
@@ -19,9 +19,12 @@ function HomeContent() {
     return field[locale] || field.en || "";
   };
 
+  // Navigates to Browse page with BOTH search term 'q' and language 'lang'
   const goToDetail = (titleText) => {
-    const langParam = locale !== "en" ? `&lang=${locale}` : "";
-    router.push(`/browse?q=${encodeURIComponent(titleText)}${langParam}`);
+    const params = new URLSearchParams();
+    params.set("q", titleText);
+    params.set("lang", locale);
+    router.push(`/browse?${params.toString()}`);
   };
 
   return (

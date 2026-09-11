@@ -10,8 +10,8 @@ import EntryCard from "../../components/entryCard.js";
 function BrowseContent() {
   const searchParams = useSearchParams();
 
-  // Read query & locale directly from URL params
   const query = searchParams.get("q") || "";
+  // Always read active language directly from URL search params
   const locale = searchParams.get("lang") || "en";
 
   const getText = (field) => {
