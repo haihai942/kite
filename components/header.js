@@ -1,20 +1,26 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
 
 export default function Header({ locale }) {
-  const [searchTerm, setSearchTerm] = useState("");
   const router = useRouter();
   const searchParams = useSearchParams();
   const pathname = usePathname();
+  
+  const [searchTerm, setSearchTerm] = useState("");
 
-  // Helper to maintain existing query parameters (like language)
+  // Sync search input if query parameter changes externally
+  useEffect(() => {
+    setSearchTerm(searchParams.get("q") || "");
+  }, [searchParams]);
+
+  // Helper to maintain existing query parameters
   const buildUrl = (targetPath, newParams = {}) => {
     const params = new URLSearchParams(searchParams.toString());
     Object.entries(newParams).forEach(([key, val]) => {
-      if (val !== undefined && val !== null) {
+      if (val !== undefined && val !== null && val !== "") {
         params.set(key, val);
       } else {
         params.delete(key);
@@ -26,15 +32,15 @@ export default function Header({ locale }) {
 
   const handleSearch = (e) => {
     e.preventDefault();
-    if (searchTerm.trim()) {
-      // Perform search and keep language
-      const lang = searchParams.get("lang");
-      const url = lang 
-        ? `/browse?q=${encodeURIComponent(searchTerm.trim())}&lang=${lang}`
-        : `/browse?q=${encodeURIComponent(searchTerm.trim())}`;
-      router.push(url);
-      setSearchTerm("");
-    }
+    const query = searchTerm.trim();
+    const lang = searchParams.get("lang");
+
+    const params = new URLSearchParams();
+    if (query) params.set("q", query);
+    if (lang) params.set("lang", lang);
+
+    const queryString = params.toString();
+    router.push(queryString ? `/browse?${queryString}` : "/browse");
   };
 
   const toggleLanguage = () => {
@@ -42,7 +48,7 @@ export default function Header({ locale }) {
     router.push(buildUrl(pathname, { lang: nextLang }));
   };
 
-  // Helper for direct page navigation while preserving ONLY language parameter
+  // Preserves language parameter while clearing search query
   const getCleanPageUrl = (targetPath) => {
     const lang = searchParams.get("lang");
     return lang ? `${targetPath}?lang=${lang}` : targetPath;
@@ -51,19 +57,17 @@ export default function Header({ locale }) {
   return (
     <header style={styles.headerContainer}>
       <div style={styles.headerInner}>
-        {/* Brand Logo - Clears search query */}
+        {/* Brand Logo */}
         <Link href={getCleanPageUrl("/")} style={styles.brand}>
           KHMER ARCHIVE
         </Link>
 
-        {/* Right Group */}
+        {/* Navigation & Search */}
         <div style={styles.rightGroup}>
           <nav style={styles.navLinks}>
-            {/* Home - Clears search query */}
             <Link href={getCleanPageUrl("/")} style={styles.link}>
               Home
             </Link>
-            {/* Browse - Explicitly clears 'q' so ALL entries are shown */}
             <Link href={getCleanPageUrl("/browse")} style={styles.link}>
               Browse
             </Link>
