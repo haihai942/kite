@@ -63,7 +63,7 @@ function BrowseContent() {
 
   const randomSuggestions = useMemo(() => {
     if (hasMatches) return [];
-    return [...entries].sort(() => 0.5 - Math.random()).slice(0, 2);
+    return [...entries].sort(() => 0.5 - Math.random()).slice(0, 3);
   }, [hasMatches, query]);
 
   const displayEntries = hasMatches ? matches : randomSuggestions;
