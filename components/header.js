@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
+import { createClient } from "../lib/supabase-client.js";
 
 export default function Header({ locale }) {
   const router = useRouter();
@@ -10,11 +11,38 @@ export default function Header({ locale }) {
   const pathname = usePathname();
 
   const [searchTerm, setSearchTerm] = useState("");
+  const [user, setUser] = useState(null);
+  const [loading, setLoading] = useState(true);
 
-  // Sync search input if query parameter changes in URL
+  // Initialize Supabase client
+  const supabase = createClient();
+
+  // Get current user session
   useEffect(() => {
-    setSearchTerm(searchParams.get("q") || "");
-  }, [searchParams]);
+    const getUser = async () => {
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        setUser(user);
+      } catch (error) {
+        console.error("Error getting user:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    getUser();
+
+    // Set up auth state change listener
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      (event, session) => {
+        setUser(session?.user || null);
+      }
+    );
+
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, [supabase.auth]);
 
   // Helper to maintain existing query parameters (like language)
   const buildUrl = (targetPath, newParams = {}) => {
@@ -48,6 +76,17 @@ export default function Header({ locale }) {
   const toggleLanguage = () => {
     const nextLang = locale === "en" ? "km" : "en";
     router.push(buildUrl(pathname, { lang: nextLang }));
+  };
+
+  // Handle logout
+  const handleLogout = async () => {
+    try {
+      await supabase.auth.signOut();
+      router.push("/");
+      router.refresh();
+    } catch (error) {
+      console.error("Error signing out:", error);
+    }
   };
 
   // Preserves language parameter while clearing search query
@@ -84,6 +123,29 @@ export default function Header({ locale }) {
               style={styles.searchInput}
             />
           </form>
+
+          {/* Auth section */}
+          <div style={styles.authSection}>
+            {loading ? (
+              <div style={styles.loading}>Loading...</div>
+            ) : user ? (
+              <div style={styles.userInfo}>
+                <span style={styles.userEmail}>{user.email}</span>
+                <button onClick={handleLogout} style={styles.logoutButton}>
+                  Logout
+                </button>
+              </div>
+            ) : (
+              <div style={styles.authLinks}>
+                <Link href="/login" style={styles.authLink}>
+                  Login
+                </Link>
+                <Link href="/signup" style={styles.authLink}>
+                  Signup
+                </Link>
+              </div>
+            )}
+          </div>
 
           <button onClick={toggleLanguage} style={styles.langButton}>
             {locale === "en" ? "🇰🇭 ភាសាខ្មែរ" : "🇬🇧 English"}
@@ -163,6 +225,59 @@ const styles = {
     width: 140,
     height: 36,
     boxSizing: "border-box",
+  },
+  authSection: {
+    display: "flex",
+    alignItems: "center",
+  },
+  loading: {
+    fontSize: 14,
+    color: "#64748B",
+    padding: "0 8px",
+  },
+  userInfo: {
+    display: "flex",
+    alignItems: "center",
+    gap: 12,
+  },
+  userEmail: {
+    fontSize: 14,
+    color: "#1E3A8A",
+    fontWeight: 500,
+    maxWidth: 150,
+    overflow: "hidden",
+    textOverflow: "ellipsis",
+    whiteSpace: "nowrap",
+  },
+  logoutButton: {
+    padding: "6px 12px",
+    backgroundColor: "#FEF2F2",
+    borderWidth: "1px",
+    borderStyle: "solid",
+    borderColor: "#FECACA",
+    borderRadius: 6,
+    color: "#DC2626",
+    fontSize: 13,
+    fontWeight: 600,
+    cursor: "pointer",
+    whiteSpace: "nowrap",
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
+    height: 36,
+    boxSizing: "border-box",
+  },
+  authLinks: {
+    display: "flex",
+    alignItems: "center",
+    gap: 12,
+  },
+  authLink: {
+    fontSize: 15,
+    fontWeight: 600,
+    color: "#1E40AF",
+    textDecoration: "none",
+    lineHeight: "36px",
   },
   langButton: {
     padding: "0 12px",
