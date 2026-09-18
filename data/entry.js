@@ -61,5 +61,25 @@ export const entries = [
         km: "ខ្ញុំ និងមិត្តភក្តិជាទូទៅបានបង្ហោះខ្លែងប្លាស្ទិកនៅវាលស្រែក្រោយផ្ទះរបស់ខ្ញុំ។ យើងប្រើថង់ប្លាស្ទិកធំៗ និងក្រាស់ដែលបានមកពីផ្សារពេលយាយទិញអីវ៉ាន់។ យើងប្រើបន្ទះឫស្សីស្ដើងៗធ្វើជាគ្រោង ព្រោះវាស្រាល ស្ទិត និងងាយពត់រាង។ ខ្ញុំភាគច្រើនរុំខ្សែប្រវែងវែងជុំវិញដបទេល ហើយធ្វើកន្ទុយខ្លែងពីថង់ប្លាស្ទិកដែរ ព្រោះវាស្អាតពេលហោះលើអាកាស។ ដើម្បីឱ្យវាហោះឡើង ម្នាក់ត្រូវកាន់ខ្លែង ហើយម្នាក់ទៀតកាន់ខ្សែរត់។ ពេលខ្យល់មក អ្នកកាន់ខ្លែងនឹងលែងវា ហើយពួកយើងបន្តរត់ព្រមទាំងសន្សឹមៗលែងខ្សែបន្ថែមរហូតដល់វាហោះកាន់តែខ្ពស់។ ការចងចាំដែលខ្ញុំចាំច្បាស់ជាងគេ គឺការប្រកួតប្រជែងជាមួយមិត្តភក្តិដើម្បីមើលថាខ្លែងរបស់អ្នកណាអាចហោះបានខ្ពស់ជាងគេ។ ជួនកាលខ្សែជំពាក់គ្នា ឬខ្លែងធ្លាក់ចូលដើមឈើ ឬវាលស្រែភ្លាមៗ ហើយអ្នករាល់គ្នានឹងរត់ទៅយករ៉េចូលគ្នា។"
     },
     image: "trash-bag-kite-in-the-sky-21730451.jpg"
-    }
+    },
+    {
+  id: "heart-decorated-plastic-kite",
+  title: {
+    en: "The Heart-Decorated Plastic Kite",
+    km: "ខ្លែងប្លាស្ទិករូបបេះដូង colorful"
+  },
+  contributor: {
+    en: "My Friend2",
+    km: "មិត្តភក្តិរបស់ខ្ញុំ"
+  },
+  place: {
+    en: "Open Space Near My House",
+    km: "ទីធ្លាទូលាយជិតផ្ទះ"
+  },
+  description: {
+    en: "When I was a kid, my friends and I usually flew our plastic kites near my house because there was a big open space where we could run around and fly them freely. To make the kite, I usually got a plastic bag from my mom after she came home from the market. For the frame, I used thin bamboo sticks because they were light and strong enough to hold the shape of the kite. I wrapped the string around an empty plastic bottle to easily control it and keep it from getting tangled. I also decorated my kite with colorful heart shapes to make it look special. I usually flew it around 2 p.m. when the wind was strongest—facing the wind, running, and slowly releasing the string until it rose high into the sky. My favorite memory was seeing my handmade kite fly high, though it was frustrating when it sometimes got stuck in a tree or on a roof. Flying plastic kites with my friends remains one of my favorite childhood memories.",
+    km: "កាលនៅពីក្មេង ខ្ញុំ និងមិត្តភក្តិជាទូទៅបានបង្ហោះខ្លែងប្លាស្ទិកនៅជិតផ្ទះ ព្រោះមានទីធ្លាទូលាយអាចរត់លេង និងបង្ហោះខ្លែងបានដោយសេរី។ ដើម្បីធ្វើខ្លែង ខ្ញុំតែងតែយកថង់ប្លាស្ទិកពីម្តាយរបស់ខ្ញុំពេលគាត់ត្រឡប់មកពីផ្សារ។ ចំពោះគ្រោងខ្លែង ខ្ញុំប្រើបន្ទះឫស្សីស្ដើងៗ ព្រោះវាស្រាល និងរឹងមាំល្មមអាចរកជារាងខ្លែងបាន។ ខ្ញុំបានរុំខ្សែជុំវិញដបប្លាស្ទិកទេល ដើម្បីងាយស្រួលគ្រប់គ្រង និងការពារកុំឱ្យខ្សែជំពាក់គ្នា។ ខ្ញុំក៏ចូលចិត្តតុបតែងខ្លែងដោយបិទរូបបេះដូងមានពណ៌ផ្សេងៗដើម្បីឱ្យវាស្រស់ស្អាត និងប្លែកពីគេ។ ខ្ញុំភាគច្រើនបង្ហោះវានៅម៉ោងប្រហែល ២ ល្ងាច ព្រោះជាពេលដែលមានខ្យល់ខ្លាំង—ដោយបែរមុខទៅរកខ្យល់ រត់ ហើយសន្សឹមៗលែងខ្សែរហូតដល់វាហោះឡើងខ្ពស់លើមេឃ។ ការចងចាំដែលខ្ញុំចូលចិត្តបំផុត គឺការបានឃើញខ្លែងធ្វើដោយដៃរបស់ខ្លួនឯងហោះឡើងខ្ពស់ ប៉ុន្តែក៏មានពេលខកចិត្តដែរនៅពេលខ្លែងទាក់ជាប់លើដើមឈើ ឬលើដំបូលផ្ទះគេ។ ទោះជាយ៉ាងណាក៏ដោយ ការបង្ហោះខ្លែងប្លាស្ទិកជាមួយមិត្តភក្តិនៅតែជាការចងចាំដ៏រីករាយបំផុតមួយក្នុងវ័យកុមារភាពរបស់ខ្ញុំ។"
+  },
+  image: "sddefault.jpg"
+}
 ];
