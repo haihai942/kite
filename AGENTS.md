@@ -29,10 +29,10 @@ One student's Khmer Living Archive, built in ICT 340 at AUPP. Every student buil
 - Explain changes plainly. The student must be able to defend every line in a code review; write code and explanations that make that possible.
 - The student reviews and approves every diff. Expect rejections and make them easy: small steps, clear boundaries.
 
-# Sprint 2 amendent
+## Sprint 2 amendment (added week 5)
 
-Two dependencies are approved for sprint 2, and only these 2:
-- @supabase/supabase - js
+Two dependencies are approved for Sprint 2, and only these two:
+- @supabase/supabase-js
 - @supabase/ssr
 
 Everything else in the hard rules stands, especially rule 3:
