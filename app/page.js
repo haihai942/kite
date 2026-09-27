@@ -1,23 +1,54 @@
 "use client";
 
-import { Suspense } from "react";
+import { Suspense, useState, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Header from "../components/header.js";
 import collection from "../collection.config.js";
-import { entries } from "../data/entry.js";
+import { createClient } from "../lib/supabase-client.js";
 
 function HomeContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const [entries, setEntries] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
   // Always read active language directly from URL search params
   const locale = searchParams.get("lang") || "en";
 
-  const getEntryText = (field) => {
-    if (!field) return "";
-    if (typeof field === "string") return field;
-    return field[locale] || field.en || "";
+  // Helper function to get text based on locale for flat structure
+  const getEntryText = (entry, fieldPrefix) => {
+    if (!entry) return "";
+    const field = entry[`${fieldPrefix}_${locale}`] || entry[`${fieldPrefix}_en`];
+    return field || "";
   };
+
+  // Fetch entries from Supabase
+  useEffect(() => {
+    async function fetchEntries() {
+      try {
+        setLoading(true);
+        const supabase = createClient();
+        const { data, error } = await supabase
+          .from('entries')
+          .select('*')
+          .order('created_at', { ascending: false });
+
+        if (error) throw error;
+        
+        setEntries(data || []);
+        setError(null);
+      } catch (err) {
+        console.error('Error fetching entries:', err);
+        setError('Failed to load entries. Please try again later.');
+        setEntries([]);
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    fetchEntries();
+  }, []);
 
   // Navigates to Browse page with BOTH search term 'q' and language 'lang'
   const goToDetail = (titleText) => {
@@ -51,32 +82,53 @@ function HomeContent() {
           </p>
         </div>
 
-        <p style={styles.count}>entries in the archive: {entries.length}</p>
+        {loading ? (
+          <div style={styles.loadingContainer}>
+            <p style={styles.loadingText}>Loading archive entries...</p>
+          </div>
+        ) : error ? (
+          <div style={styles.errorContainer}>
+            <p style={styles.errorText}>{error}</p>
+          </div>
+        ) : (
+          <>
+            <p style={styles.count}>entries in the archive: {entries.length}</p>
 
-        {entries.map((entry, index) => {
-          const itemTitle = getEntryText(entry.title) || "Untitled";
+            {entries.length === 0 ? (
+              <div style={styles.emptyContainer}>
+                <p style={styles.emptyText}>No entries found in the archive.</p>
+              </div>
+            ) : (
+              entries.map((entry, index) => {
+                const itemTitle = getEntryText(entry, 'title') || "Untitled";
+                const imageUrl = entry.photo_urls && entry.photo_urls.length > 0 
+                  ? `/api/images/${entry.photo_urls[0]}` 
+                  : null;
 
-          return (
-            <div
-              key={entry.id || index}
-              style={styles.previewCard}
-              onClick={() => goToDetail(itemTitle)}
-            >
-              {entry.image && (
-                <div style={styles.imageWrapper}>
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src={`/api/images/${entry.image}`}
-                    alt={itemTitle}
-                    style={styles.previewImage}
-                  />
-                </div>
-              )}
-              <h2 style={styles.previewTitle}>{itemTitle}</h2>
-              <span style={styles.detailBtn}>Click for more details →</span>
-            </div>
-          );
-        })}
+                return (
+                  <div
+                    key={entry.id || index}
+                    style={styles.previewCard}
+                    onClick={() => goToDetail(itemTitle)}
+                  >
+                    {imageUrl && (
+                      <div style={styles.imageWrapper}>
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img
+                          src={imageUrl}
+                          alt={itemTitle}
+                          style={styles.previewImage}
+                        />
+                      </div>
+                    )}
+                    <h2 style={styles.previewTitle}>{itemTitle}</h2>
+                    <span style={styles.detailBtn}>Click for more details →</span>
+                  </div>
+                );
+              })
+            )}
+          </>
+        )}
 
         <footer style={styles.footer}>
           Built in ICT 340 — Vibe Coding, Archived Kites new thing.
@@ -198,6 +250,42 @@ const styles = {
     fontSize: 14,
     fontWeight: 600,
     display: "inline-block",
+  },
+  loadingContainer: {
+    textAlign: "center",
+    padding: "40px 0",
+    marginTop: 32,
+  },
+  loadingText: {
+    fontSize: 16,
+    color: "#64748B",
+    fontStyle: "italic",
+  },
+  errorContainer: {
+    textAlign: "center",
+    padding: "40px 0",
+    marginTop: 32,
+    backgroundColor: "#FEF2F2",
+    border: "1px solid #FECACA",
+    borderRadius: 8,
+  },
+  errorText: {
+    fontSize: 16,
+    color: "#DC2626",
+    fontWeight: 500,
+  },
+  emptyContainer: {
+    textAlign: "center",
+    padding: "40px 0",
+    marginTop: 32,
+    backgroundColor: "#F0F9FF",
+    border: "1px solid #BAE6FD",
+    borderRadius: 8,
+  },
+  emptyText: {
+    fontSize: 16,
+    color: "#0369A1",
+    fontStyle: "italic",
   },
   footer: {
     marginTop: 64,
