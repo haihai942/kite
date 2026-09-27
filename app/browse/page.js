@@ -1,31 +1,64 @@
 "use client";
 
-import { useMemo, Suspense } from "react";
+import { useMemo, Suspense, useState, useEffect } from "react";
 import { useSearchParams } from "next/navigation";
 import Header from "../../components/header.js";
-import { entries } from "../../data/entry.js";
+import { createClient } from "../../lib/supabase-client.js";
 import collection from "../../collection.config.js";
 import EntryCard from "../../components/entryCard.js";
 
 function BrowseContent() {
   const searchParams = useSearchParams();
+  const [entries, setEntries] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
   const query = searchParams.get("q") || "";
   const locale = searchParams.get("lang") || "en";
 
-  const getText = (field) => {
-    if (!field) return "";
-    if (typeof field === "string") return field;
-    return field[locale] || field.en || "";
+  // Helper function to get text based on locale for flat structure
+  const getText = (entry, fieldPrefix) => {
+    if (!entry) return "";
+    const field = entry[`${fieldPrefix}_${locale}`] || entry[`${fieldPrefix}_en`];
+    return field || "";
   };
 
+  // Helper to get combined text for searching across all fields
   const getCombinedEntryText = (entry) => {
-    const title = `${entry.title?.en || ""} ${entry.title?.km || ""}`;
-    const contributor = `${entry.contributor?.en || ""} ${entry.contributor?.km || ""}`;
-    const place = `${entry.place?.en || ""} ${entry.place?.km || ""}`;
-    const description = `${entry.description?.en || ""} ${entry.description?.km || ""}`;
-    return `${title} ${contributor} ${place} ${description}`.toLowerCase();
+    if (!entry) return "";
+    const title = `${entry.title_en || ""} ${entry.title_km || ""}`;
+    const contributor = `${entry.contributor_en || ""} ${entry.contributor_km || ""}`;
+    const places = `${entry.places_en || ""} ${entry.places_km || ""}`;
+    const description = `${entry.description_en || ""} ${entry.description_km || ""}`;
+    return `${title} ${contributor} ${places} ${description}`.toLowerCase();
   };
+
+  // Fetch entries from Supabase
+  useEffect(() => {
+    async function fetchEntries() {
+      try {
+        setLoading(true);
+        const supabase = createClient();
+        const { data, error } = await supabase
+          .from('entries')
+          .select('*')
+          .order('created_at', { ascending: false });
+
+        if (error) throw error;
+        
+        setEntries(data || []);
+        setError(null);
+      } catch (err) {
+        console.error('Error fetching entries:', err);
+        setError('Failed to load entries. Please try again later.');
+        setEntries([]);
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    fetchEntries();
+  }, []);
 
   // Process search query
   const cleanQuery = query.trim().toLowerCase();
@@ -62,9 +95,9 @@ function BrowseContent() {
   const hasMatches = matches.length > 0;
 
   const randomSuggestions = useMemo(() => {
-    if (hasMatches) return [];
+    if (hasMatches || entries.length === 0) return [];
     return [...entries].sort(() => 0.5 - Math.random()).slice(0, 4);
-  }, [hasMatches, query]);
+  }, [hasMatches, query, entries]);
 
   const displayEntries = hasMatches ? matches : randomSuggestions;
 
@@ -84,27 +117,49 @@ function BrowseContent() {
               `Showing results for "${query}"`
             ) : (
               <span>
-                No exact results found for <strong>"{query}"</strong>. Here are
-                some entries from our collection:
+                No exact results found for <strong>"{query}"</strong>. 
+                {entries.length > 0 ? " Here are some entries from our collection:" : " The archive is currently empty."}
               </span>
             )}
           </p>
         </div>
 
-        <p style={styles.count}>entries in view: {displayEntries.length}</p>
+        {loading ? (
+          <div style={styles.loadingContainer}>
+            <p style={styles.loadingText}>Loading archive...</p>
+          </div>
+        ) : error ? (
+          <div style={styles.errorContainer}>
+            <p style={styles.errorText}>{error}</p>
+          </div>
+        ) : entries.length === 0 ? (
+          <div style={styles.emptyContainer}>
+            <p style={styles.emptyText}>No entries found in the archive.</p>
+          </div>
+        ) : (
+          <>
+            <p style={styles.count}>entries in view: {displayEntries.length}</p>
 
-        {displayEntries.map((entry, index) => (
-          <EntryCard
-            key={entry.id || entry.title?.en || index}
-            title={getText(entry.title) || "Untitled"}
-            contributor={getText(entry.contributor) || "Unknown"}
-            place={getText(entry.place) || "Unknown"}
-            description={
-              getText(entry.description) || "No description available"
-            }
-            image={entry.image ? `/api/images/${entry.image}` : null}
-          />
-        ))}
+            {displayEntries.map((entry, index) => {
+              const imageUrl = entry.photo_urls && entry.photo_urls.length > 0 
+                ? `/api/images/${entry.photo_urls[0]}` 
+                : null;
+
+              return (
+                <EntryCard
+                  key={entry.id || index}
+                  title={getText(entry, 'title') || "Untitled"}
+                  contributor={getText(entry, 'contributor') || "Unknown"}
+                  place={getText(entry, 'places') || "Unknown"}
+                  description={
+                    getText(entry, 'description') || "No description available"
+                  }
+                  image={imageUrl}
+                />
+              );
+            })}
+          </>
+        )}
 
         <footer style={styles.footer}>
           Built in ICT 340 — Vibe Coding, Archived Kites new thing.
@@ -164,6 +219,42 @@ const styles = {
     color: "#3B82F6",
     fontWeight: 600,
     marginBottom: 24,
+  },
+  loadingContainer: {
+    textAlign: "center",
+    padding: "40px 0",
+    marginTop: 32,
+  },
+  loadingText: {
+    fontSize: 16,
+    color: "#64748B",
+    fontStyle: "italic",
+  },
+  errorContainer: {
+    textAlign: "center",
+    padding: "40px 0",
+    marginTop: 32,
+    backgroundColor: "#FEF2F2",
+    border: "1px solid #FECACA",
+    borderRadius: 8,
+  },
+  errorText: {
+    fontSize: 16,
+    color: "#DC2626",
+    fontWeight: 500,
+  },
+  emptyContainer: {
+    textAlign: "center",
+    padding: "40px 0",
+    marginTop: 32,
+    backgroundColor: "#F0F9FF",
+    border: "1px solid #BAE6FD",
+    borderRadius: 8,
+  },
+  emptyText: {
+    fontSize: 16,
+    color: "#0369A1",
+    fontStyle: "italic",
   },
   footer: {
     marginTop: 64,
