@@ -112,6 +112,9 @@ export default function Header({ locale }) {
             <Link href={getCleanPageUrl("/browse")} style={styles.link}>
               Browse
             </Link>
+            <Link href={getCleanPageUrl("/contribute")} style={styles.link}>
+              Contribute
+            </Link>
           </nav>
 
           <form onSubmit={handleSearch} style={styles.searchForm}>
