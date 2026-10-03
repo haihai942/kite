@@ -261,7 +261,7 @@ function ContributeContent() {
         ) : !user ? (
           <div style={styles.card}>
             <p style={styles.loginMessage}>
-              You must be logged in to add an entry to the archive.
+              Please log in to submit an entry
             </p>
             <Link href="/login" style={styles.buttonLink}>
               Log in
