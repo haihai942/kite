@@ -23,6 +23,14 @@ function BrowseContent() {
     return field || "";
   };
 
+  // Build an image src: new entries store a public storage URL,
+  // older entries store a local filename served by /api/images/.
+  const getEntryImage = (entry) => {
+    const first = entry?.photo_urls?.[0];
+    if (!first) return null;
+    return /^https?:\/\//i.test(first) ? first : `/api/images/${first}`;
+  };
+
   // Helper to get combined text for searching across all fields
   const getCombinedEntryText = (entry) => {
     if (!entry) return "";
@@ -141,9 +149,7 @@ function BrowseContent() {
             <p style={styles.count}>entries in view: {displayEntries.length}</p>
 
             {displayEntries.map((entry, index) => {
-              const imageUrl = entry.photo_urls && entry.photo_urls.length > 0 
-                ? `/api/images/${entry.photo_urls[0]}` 
-                : null;
+              const imageUrl = getEntryImage(entry);
 
               return (
                 <EntryCard

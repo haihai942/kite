@@ -23,6 +23,14 @@ function HomeContent() {
     return field || "";
   };
 
+  // Build an image src: new entries store a public storage URL,
+  // older entries store a local filename served by /api/images/.
+  const getEntryImage = (entry) => {
+    const first = entry?.photo_urls?.[0];
+    if (!first) return null;
+    return /^https?:\/\//i.test(first) ? first : `/api/images/${first}`;
+  };
+
   // Fetch entries from Supabase
   useEffect(() => {
     async function fetchEntries() {
@@ -101,9 +109,7 @@ function HomeContent() {
             ) : (
               entries.map((entry, index) => {
                 const itemTitle = getEntryText(entry, 'title') || "Untitled";
-                const imageUrl = entry.photo_urls && entry.photo_urls.length > 0 
-                  ? `/api/images/${entry.photo_urls[0]}` 
-                  : null;
+                const imageUrl = getEntryImage(entry);
 
                 return (
                   <div
