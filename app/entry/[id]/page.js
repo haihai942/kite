@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, Suspense } from "react";
-import { useParams, useSearchParams } from "next/navigation";
+import { useParams, useSearchParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import Header from "../../../components/header.js";
 import { createClient } from "../../../lib/supabase-client.js";
@@ -10,10 +10,14 @@ function EntryContent() {
   const { id } = useParams();
   const searchParams = useSearchParams();
   const locale = searchParams.get("lang") || "en";
+  const router = useRouter();
 
   const [entry, setEntry] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [currentUser, setCurrentUser] = useState(null);
+  const [userLoading, setUserLoading] = useState(true);
+  const [deleting, setDeleting] = useState(false);
 
   // Read text for the active locale, falling back to English.
   const getText = (fieldPrefix) => {
@@ -29,6 +33,28 @@ function EntryContent() {
       ? firstPhoto
       : `/api/images/${firstPhoto}`
     : null;
+
+  // Check if current user is the owner of this entry
+  const isOwner = currentUser?.id && entry?.owner && currentUser.id === entry.owner;
+
+  // Fetch current user
+  useEffect(() => {
+    let active = true;
+    (async () => {
+      try {
+        const supabase = createClient();
+        const { data } = await supabase.auth.getUser();
+        if (active) setCurrentUser(data.user);
+      } catch (err) {
+        console.error("Error fetching user:", err);
+      } finally {
+        if (active) setUserLoading(false);
+      }
+    })();
+    return () => {
+      active = false;
+    };
+  }, []);
 
   // Fetch this entry from Supabase.
   useEffect(() => {
@@ -58,6 +84,35 @@ function EntryContent() {
   const title = getText("title") || "Untitled Entry";
   const contributor = getText("contributor") || "Unknown contributor";
   const place = getText("places");
+
+  // Handle delete entry
+  const handleDelete = async () => {
+    if (!window.confirm("Are you sure you want to delete this entry? This action cannot be undone.")) {
+      return;
+    }
+
+    setDeleting(true);
+    try {
+      const supabase = createClient();
+      const { error } = await supabase
+        .from("entries")
+        .delete()
+        .eq("id", id);
+      
+      if (error) throw error;
+      
+      router.push("/browse");
+    } catch (err) {
+      console.error("Error deleting entry:", err);
+      alert("Failed to delete entry. Please try again.");
+      setDeleting(false);
+    }
+  };
+
+  // Handle edit navigation
+  const handleEdit = () => {
+    router.push(`/entry/${id}/edit${locale && locale !== "en" ? `?lang=${locale}` : ""}`);
+  };
 
   return (
     <>
@@ -94,6 +149,32 @@ function EntryContent() {
           </div>
         ) : (
           <>
+            {/* Owner actions */}
+            {!userLoading && isOwner && (
+              <div style={styles.actionsCard}>
+                <div style={styles.actionsHeader}>
+                  <p style={styles.actionsTitle}>Entry Management</p>
+                  <p style={styles.actionsSubtitle}>You are the owner of this entry</p>
+                </div>
+                <div style={styles.actionsButtons}>
+                  <button 
+                    onClick={handleEdit} 
+                    style={styles.editButton}
+                    disabled={deleting}
+                  >
+                    Edit Entry
+                  </button>
+                  <button 
+                    onClick={handleDelete} 
+                    style={styles.deleteButton}
+                    disabled={deleting}
+                  >
+                    {deleting ? "Deleting..." : "Delete Entry"}
+                  </button>
+                </div>
+              </div>
+            )}
+
             {photoSrc && (
               <div style={styles.imageWrapper}>
                 {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -161,6 +242,59 @@ const styles = {
     color: "#3B82F6",
     lineHeight: 1.5,
     margin: 0,
+  },
+  // Owner actions styles
+  actionsCard: {
+    marginBottom: 24,
+    padding: 24,
+    backgroundColor: "#F0F9FF",
+    borderWidth: "1px",
+    borderStyle: "solid",
+    borderColor: "#93C5FD",
+    borderRadius: 10,
+    boxSizing: "border-box",
+  },
+  actionsHeader: {
+    marginBottom: 16,
+  },
+  actionsTitle: {
+    fontSize: 18,
+    fontWeight: 600,
+    color: "#1E40AF",
+    margin: "0 0 4px",
+  },
+  actionsSubtitle: {
+    fontSize: 14,
+    color: "#64748B",
+    margin: 0,
+  },
+  actionsButtons: {
+    display: "flex",
+    gap: 12,
+  },
+  editButton: {
+    padding: "10px 20px",
+    backgroundColor: "#1E40AF",
+    color: "#FFFFFF",
+    border: "none",
+    borderRadius: 6,
+    fontSize: 14,
+    fontWeight: 600,
+    cursor: "pointer",
+    flex: 1,
+  },
+  deleteButton: {
+    padding: "10px 20px",
+    backgroundColor: "#FEF2F2",
+    borderWidth: "1px",
+    borderStyle: "solid",
+    borderColor: "#FECACA",
+    color: "#DC2626",
+    borderRadius: 6,
+    fontSize: 14,
+    fontWeight: 600,
+    cursor: "pointer",
+    flex: 1,
   },
   imageWrapper: {
     width: "100%",
