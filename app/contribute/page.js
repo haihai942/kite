@@ -2,6 +2,7 @@
 
 import { useState, useEffect, Suspense } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import Header from "../../components/header.js";
 import { createClient } from "../../lib/supabase-client.js";
 
@@ -113,6 +114,7 @@ function validate(values, photo) {
 }
 
 function ContributeContent() {
+  const router = useRouter();
   const [supabase] = useState(() => createClient());
   const [user, setUser] = useState(null);
   const [authLoading, setAuthLoading] = useState(true);
@@ -123,7 +125,6 @@ function ContributeContent() {
   const [errors, setErrors] = useState({});
   const [submitError, setSubmitError] = useState("");
   const [submitting, setSubmitting] = useState(false);
-  const [success, setSuccess] = useState(false);
 
   // Check the current session; only logged-in users can submit.
   useEffect(() => {
@@ -174,19 +175,33 @@ function ContributeContent() {
 
     setSubmitting(true);
     try {
+      // Get the logged-in user at submit time. Ownership always comes from
+      // the authenticated user's id — never from a form input.
+      const {
+        data: { user: currentUser },
+        error: userError,
+      } = await supabase.auth.getUser();
+      if (userError) throw userError;
+      if (!currentUser) {
+        setSubmitError(
+          "Your session has expired. Please log in again and try again."
+        );
+        return;
+      }
+
       // Upload the photo to the 'photos' bucket: <user_id>/<random_uuid>.<ext>
       let photoUrl = "";
       if (photo) {
         const extMatch = /\.([a-zA-Z0-9]+)$/.exec(photo.name);
         const ext = extMatch ? extMatch[1].toLowerCase() : "jpg";
-        const filePath = `${user.id}/${makePhotoId()}.${ext}`;
+        const filePath = `${currentUser.id}/${makePhotoId()}.${ext}`;
         const { error: uploadError } = await supabase.storage
           .from("photos")
           .upload(filePath, photo, {
             contentType: photo.type || "application/octet-stream",
             upsert: false,
           });
-        if (uploadError) throw new Error(uploadError.message);
+        if (uploadError) throw uploadError;
 
         const { data: urlData } = supabase.storage
           .from("photos")
@@ -194,39 +209,37 @@ function ContributeContent() {
         photoUrl = urlData.publicUrl;
       }
 
-      // Add the trimmed entry to the entries table.
-      const { error: insertError } = await supabase.from("entries").insert({
-        owner: user.id,
-        title_en: trimmed.title_en,
-        title_km: trimmed.title_km,
-        contributor_en: trimmed.contributor_en,
-        contributor_km: trimmed.contributor_km,
-        places_en: trimmed.places_en,
-        places_km: trimmed.places_km,
-        description_en: trimmed.description_en,
-        description_km: trimmed.description_km,
-        photo_urls: photoUrl ? [photoUrl] : [],
-      });
-      if (insertError) throw new Error(insertError.message);
+      // Insert the new entry, listing every column explicitly, and ask for
+      // the new row's id so we can redirect to its entry page.
+      const { data: inserted, error: insertError } = await supabase
+        .from("entries")
+        .insert({
+          owner: currentUser.id,
+          title_en: trimmed.title_en,
+          title_km: trimmed.title_km,
+          contributor_en: trimmed.contributor_en,
+          contributor_km: trimmed.contributor_km,
+          places_en: trimmed.places_en,
+          places_km: trimmed.places_km,
+          description_en: trimmed.description_en,
+          description_km: trimmed.description_km,
+          photo_urls: photoUrl ? [photoUrl] : [],
+        })
+        .select("id")
+        .single();
+      if (insertError) throw insertError;
 
-      setSuccess(true);
+      // Redirect to the newly created entry.
+      router.push(`/entry/${inserted.id}`);
     } catch (err) {
+      // Log the real error, but only ever show a friendly generic message.
       console.error("Error submitting entry:", err);
       setSubmitError(
-        "Failed to submit your entry. Please check the 'photos' bucket exists and try again."
+        "We couldn't save your entry right now. Please try again."
       );
     } finally {
       setSubmitting(false);
     }
-  };
-
-  const resetForm = () => {
-    setValues(EMPTY_VALUES);
-    setPhoto(null);
-    setPhotoKey((k) => k + 1);
-    setErrors({});
-    setSubmitError("");
-    setSuccess(false);
   };
 
   return (
@@ -259,21 +272,6 @@ function ContributeContent() {
                 Create an account
               </Link>
             </p>
-          </div>
-        ) : success ? (
-          <div style={styles.card}>
-            <p style={styles.successTitle}>Your entry was submitted!</p>
-            <p style={styles.successText}>
-              Thank you for sharing your memory with the archive.
-            </p>
-            <div style={styles.successActions}>
-              <Link href="/browse" style={styles.buttonLink}>
-                Browse the archive
-              </Link>
-              <button onClick={resetForm} style={styles.secondaryButton}>
-                Submit another entry
-              </button>
-            </div>
           </div>
         ) : (
           <div style={styles.card}>
@@ -491,7 +489,15 @@ function ContributeContent() {
                 )}
               </div>
 
-              <button type="submit" style={styles.button} disabled={submitting}>
+              <button
+                type="submit"
+                style={
+                  submitting
+                    ? { ...styles.button, ...styles.buttonDisabled }
+                    : styles.button
+                }
+                disabled={submitting}
+              >
                 {submitting ? "Submitting..." : "Submit Entry"}
               </button>
             </form>
@@ -649,6 +655,10 @@ const styles = {
     cursor: "pointer",
     marginTop: 8,
   },
+  buttonDisabled: {
+    opacity: 0.6,
+    cursor: "not-allowed",
+  },
   buttonLink: {
     display: "inline-block",
     padding: "12px 20px",
@@ -658,19 +668,6 @@ const styles = {
     borderRadius: 6,
     fontSize: 15,
     fontWeight: 600,
-    marginTop: 16,
-  },
-  secondaryButton: {
-    padding: "12px 20px",
-    backgroundColor: "transparent",
-    borderWidth: "1px",
-    borderStyle: "solid",
-    borderColor: "#93C5FD",
-    color: "#1E40AF",
-    borderRadius: 6,
-    fontSize: 15,
-    fontWeight: 600,
-    cursor: "pointer",
     marginTop: 16,
   },
   loginMessage: {
@@ -694,23 +691,6 @@ const styles = {
     color: "#64748B",
     fontStyle: "italic",
     margin: 0,
-  },
-  successTitle: {
-    fontSize: 22,
-    fontWeight: 700,
-    color: "#1E3A8A",
-    margin: 0,
-  },
-  successText: {
-    fontSize: 16,
-    color: "#1E3A8A",
-    lineHeight: 1.6,
-    margin: "8px 0 0",
-  },
-  successActions: {
-    display: "flex",
-    gap: 12,
-    flexWrap: "wrap",
   },
   footer: {
     marginTop: 64,

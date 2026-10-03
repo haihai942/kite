@@ -2,6 +2,7 @@
 
 import { useMemo, Suspense, useState, useEffect } from "react";
 import { useSearchParams } from "next/navigation";
+import Link from "next/link";
 import Header from "../../components/header.js";
 import { createClient } from "../../lib/supabase-client.js";
 import collection from "../../collection.config.js";
@@ -152,16 +153,21 @@ function BrowseContent() {
               const imageUrl = getEntryImage(entry);
 
               return (
-                <EntryCard
+                <Link
                   key={entry.id || index}
-                  title={getText(entry, 'title') || "Untitled"}
-                  contributor={getText(entry, 'contributor') || "Unknown"}
-                  place={getText(entry, 'places') || "Unknown"}
-                  description={
-                    getText(entry, 'description') || "No description available"
-                  }
-                  image={imageUrl}
-                />
+                  href={`/entry/${entry.id}?lang=${locale}`}
+                  style={{ textDecoration: 'none', color: 'inherit' }}
+                >
+                  <EntryCard
+                    title={getText(entry, 'title') || "Untitled"}
+                    contributor={getText(entry, 'contributor') || "Unknown"}
+                    place={getText(entry, 'places') || "Unknown"}
+                    description={
+                      getText(entry, 'description') || "No description available"
+                    }
+                    image={imageUrl}
+                  />
+                </Link>
               );
             })}
           </>

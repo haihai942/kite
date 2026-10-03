@@ -58,12 +58,11 @@ function HomeContent() {
     fetchEntries();
   }, []);
 
-  // Navigates to Browse page with BOTH search term 'q' and language 'lang'
-  const goToDetail = (titleText) => {
+  // Navigates to Entry detail page with language 'lang' parameter
+  const goToDetail = (entryId) => {
     const params = new URLSearchParams();
-    params.set("q", titleText);
     params.set("lang", locale);
-    router.push(`/browse?${params.toString()}`);
+    router.push(`/entry/${entryId}?${params.toString()}`);
   };
 
   return (
@@ -115,7 +114,7 @@ function HomeContent() {
                   <div
                     key={entry.id || index}
                     style={styles.previewCard}
-                    onClick={() => goToDetail(itemTitle)}
+                    onClick={() => goToDetail(entry.id)}
                   >
                     {imageUrl && (
                       <div style={styles.imageWrapper}>

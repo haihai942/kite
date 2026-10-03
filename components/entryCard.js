@@ -5,15 +5,18 @@ export default function EntryCard({ title, contributor, place, description, imag
   const cardStyle = {
     marginBottom: 24,
     padding: 20,
-    backgroundColor: "#1C222C",
-    border: "1px solid #2E3644",
+    backgroundColor: "#FFFFFF",
+    borderWidth: "1px",
+    borderStyle: "solid",
+    borderColor: "#93C5FD",
     borderRadius: 10,
   };
 
   const labelStyle = {
     fontFamily: "'Courier New', monospace",
     fontSize: 12,
-    color: "#97A1B3",
+    color: "#1E40AF",
+    fontWeight: 600,
     marginBottom: 6,
   };
 
@@ -21,20 +24,23 @@ export default function EntryCard({ title, contributor, place, description, imag
     fontSize: 16,
     lineHeight: 1.6,
     marginBottom: 16,
+    color: "#1E3A8A",
   };
 
   const descriptionStyle = {
     fontSize: 16,
     lineHeight: 1.6,
-    color: "#E0E0E0",
+    color: "#1E3A8A",
   };
-// NEW: Styles for image container and image element  const imageWrapStyle = {
+
   const imageWrapStyle = {
     marginBottom: 16,
     overflow: "hidden",
     borderRadius: 8,
-    border: "1px solid #2E3644",
-    backgroundColor: "#0F141A",
+    borderWidth: "1px",
+    borderStyle: "solid",
+    borderColor: "#93C5FD",
+    backgroundColor: "#F1F5F9",
   };
 
   const imageStyle = {
