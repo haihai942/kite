@@ -18,6 +18,7 @@ function EntryContent() {
   const [currentUser, setCurrentUser] = useState(null);
   const [userLoading, setUserLoading] = useState(true);
   const [deleting, setDeleting] = useState(false);
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
 
   // Read text for the active locale, falling back to English.
   const getText = (fieldPrefix) => {
@@ -85,12 +86,14 @@ function EntryContent() {
   const contributor = getText("contributor") || "Unknown contributor";
   const place = getText("places");
 
-  // Handle delete entry
-  const handleDelete = async () => {
-    if (!window.confirm("Are you sure you want to delete this entry? This action cannot be undone.")) {
-      return;
-    }
+  // Handle delete entry - opens confirmation modal
+  const handleDeleteClick = () => {
+    setIsDeleteModalOpen(true);
+  };
 
+  // Perform actual delete after confirmation
+  const handleDeleteConfirm = async () => {
+    setIsDeleteModalOpen(false);
     setDeleting(true);
     try {
       const supabase = createClient();
@@ -165,7 +168,7 @@ function EntryContent() {
                     Edit Entry
                   </button>
                   <button 
-                    onClick={handleDelete} 
+                    onClick={handleDeleteClick} 
                     style={styles.deleteButton}
                     disabled={deleting}
                   >
@@ -194,6 +197,32 @@ function EntryContent() {
         <footer style={styles.footer}>
           Built in ICT 340 — Vibe Coding, Archived Kites new thing.
         </footer>
+
+        {/* Delete Confirmation Modal */}
+        {isDeleteModalOpen && (
+          <div style={styles.modalBackdrop}>
+            <div style={styles.modalContent}>
+              <h3 style={styles.modalTitle}>Delete Entry</h3>
+              <p style={styles.modalText}>
+                Are you sure you want to delete this entry? This action cannot be undone.
+              </p>
+              <div style={styles.modalButtons}>
+                <button
+                  onClick={() => setIsDeleteModalOpen(false)}
+                  style={styles.modalCancelButton}
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleDeleteConfirm}
+                  style={styles.modalDeleteButton}
+                >
+                  Delete
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </main>
     </>
   );
@@ -373,6 +402,71 @@ const styles = {
     borderBottomStyle: "none",
     fontSize: 13,
     color: "#64748B",
+  },
+  // Modal styles
+  modalBackdrop: {
+    position: "fixed",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: "rgba(0, 0, 0, 0.5)",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    zIndex: 1000,
+  },
+  modalContent: {
+    backgroundColor: "#FFFFFF",
+    borderRadius: 12,
+    padding: 24,
+    maxWidth: 400,
+    width: "90%",
+    boxShadow: "0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)",
+    borderWidth: "1px",
+    borderStyle: "solid",
+    borderColor: "#93C5FD",
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: 600,
+    color: "#1E3A8A",
+    margin: "0 0 16px",
+  },
+  modalText: {
+    fontSize: 16,
+    color: "#64748B",
+    lineHeight: 1.6,
+    margin: "0 0 24px",
+  },
+  modalButtons: {
+    display: "flex",
+    gap: 12,
+    justifyContent: "flex-end",
+  },
+  modalCancelButton: {
+    padding: "10px 20px",
+    backgroundColor: "#F8FAFC",
+    borderWidth: "1px",
+    borderStyle: "solid",
+    borderColor: "#CBD5E1",
+    color: "#475569",
+    borderRadius: 6,
+    fontSize: 14,
+    fontWeight: 600,
+    cursor: "pointer",
+    flex: 1,
+  },
+  modalDeleteButton: {
+    padding: "10px 20px",
+    backgroundColor: "#DC2626",
+    border: "none",
+    color: "#FFFFFF",
+    borderRadius: 6,
+    fontSize: 14,
+    fontWeight: 600,
+    cursor: "pointer",
+    flex: 1,
   },
 };
 
