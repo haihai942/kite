@@ -5,6 +5,10 @@ import { useParams, useSearchParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import Header from "../../../../components/header.js";
 import { createClient } from "../../../../lib/supabase-client.js";
+import { 
+  validatePhotoFile,
+  prepareFileForUpload
+} from "../../../../lib/file-validation.js";
 
 // Max character counts (measured after trimming) for each text field.
 const MAX_LENGTHS = {
@@ -40,14 +44,38 @@ const EMPTY_VALUES = {
   description_km: "",
 };
 
-const MAX_PHOTO_SIZE = 5 * 1024 * 1024; // 5 MB in bytes
-const PHOTO_TYPES = ["image/jpeg", "image/png", "image/webp"];
+// Photo size and type validation is now handled by file-validation.js
+// MAX_PHOTO_SIZE and PHOTO_TYPES are defined there
 
 function makePhotoId() {
   if (typeof crypto !== "undefined" && crypto.randomUUID) {
     return crypto.randomUUID();
   }
   return `photo-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+}
+
+// Extract file path from Supabase Storage URL
+function extractFilePathFromUrl(url) {
+  if (!url) return null;
+  
+  // Supabase Storage URLs typically have pattern:
+  // https://[project-ref].supabase.co/storage/v1/object/public/photos/[user-id]/[filename]
+  try {
+    const urlObj = new URL(url);
+    const pathParts = urlObj.pathname.split('/');
+    
+    // Find the index of 'photos' in the path
+    const photosIndex = pathParts.indexOf('photos');
+    if (photosIndex === -1 || photosIndex >= pathParts.length - 1) {
+      return null;
+    }
+    
+    // Return everything after 'photos'
+    return pathParts.slice(photosIndex + 1).join('/');
+  } catch (e) {
+    console.error('Error parsing photo URL:', e);
+    return null;
+  }
 }
 
 // Count Unicode code points, so Khmer characters count correctly.
@@ -63,7 +91,7 @@ function trimValues(values) {
   return trimmed;
 }
 
-function validate(values, photo) {
+function validate(values, photo, removeCurrentPhoto = false) {
   const errors = {};
 
   // Title (English): required, max 30 chars, not blank spaces or symbols only.
@@ -98,13 +126,11 @@ function validate(values, photo) {
   });
 
   // Photo validation (optional for editing, but if provided must be valid)
-  if (photo) {
-    const typeOk = PHOTO_TYPES.includes((photo.type || "").toLowerCase());
-    const extOk = /\.(jpe?g|png|webp)$/i.test(photo.name || "");
-    if (!typeOk && !extOk) {
-      errors.photo = "Photo must be a JPG, PNG, or WebP image.";
-    } else if (photo.size > MAX_PHOTO_SIZE) {
-      errors.photo = "Photo must be 5 MB or smaller.";
+  // No photo validation needed if user is removing the current photo
+  if (photo && !removeCurrentPhoto) {
+    const validation = validatePhotoFile(photo);
+    if (!validation.isValid) {
+      errors.photo = validation.error;
     }
   }
 
@@ -130,6 +156,7 @@ function EditContent() {
   const [errors, setErrors] = useState({});
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState("");
+  const [removeCurrentPhoto, setRemoveCurrentPhoto] = useState(false);
 
   // Fetch current user and check ownership
   useEffect(() => {
@@ -214,7 +241,7 @@ function EditContent() {
     const trimmed = trimValues({ [field]: values[field] });
     const newValues = { ...values, ...trimmed };
     setValues(newValues);
-    const newErrors = validate(newValues, photo);
+    const newErrors = validate(newValues, photo, removeCurrentPhoto);
     if (newErrors[field]) {
       setErrors((prev) => ({ ...prev, [field]: newErrors[field] }));
     }
@@ -223,8 +250,14 @@ function EditContent() {
   const handlePhotoChange = (e) => {
     const file = e.target.files && e.target.files[0];
     setPhoto(file || null);
+    
+    // When user selects a new photo, reset the remove photo state
+    if (file && removeCurrentPhoto) {
+      setRemoveCurrentPhoto(false);
+    }
+    
     if (errors.photo) {
-      const nextErrors = validate(values, file || null);
+      const nextErrors = validate(values, file || null, removeCurrentPhoto);
       setErrors((prev) => ({ ...prev, photo: nextErrors.photo || "" }));
     }
   };
@@ -235,7 +268,7 @@ function EditContent() {
     const trimmed = trimValues(values);
     setValues(trimmed);
     
-    const validationErrors = validate(trimmed, photo);
+    const validationErrors = validate(trimmed, photo, removeCurrentPhoto);
     if (Object.keys(validationErrors).length > 0) {
       setErrors(validationErrors);
       return;
@@ -251,27 +284,44 @@ function EditContent() {
         throw new Error("Your session has expired. Please log in again.");
       }
       
-      // Get existing photo URL
+      // Get existing photo URL and prepare for possible deletion
       const existingPhotoUrl = entry?.photo_urls?.[0] || "";
+      const existingFilePath = extractFilePathFromUrl(existingPhotoUrl);
       let finalPhotoUrl = existingPhotoUrl;
+      let photoToDeletePath = null;
       
-      // Upload new photo if provided
-      if (photo) {
-        const extMatch = /\.([a-zA-Z0-9]+)$/.exec(photo.name);
-        const ext = extMatch ? extMatch[1].toLowerCase() : "jpg";
-        const filePath = `${currentUser.id}/${makePhotoId()}.${ext}`;
+      // Handle photo removal or replacement
+      if (removeCurrentPhoto) {
+        // User wants to remove the current photo
+        photoToDeletePath = existingFilePath;
+        finalPhotoUrl = ""; // Will result in empty photo_urls array
+      } else if (photo) {
+        // User is uploading a new photo
+        // Strict file validation and preparation
+        const filePreparation = prepareFileForUpload(photo);
+        if (!filePreparation.isValid) {
+          throw new Error(filePreparation.error);
+        }
+        
+        const safeExtension = filePreparation.safeExtension;
+        const newFilePath = `${currentUser.id}/${makePhotoId()}.${safeExtension}`;
         const { error: uploadError } = await supabase.storage
           .from("photos")
-          .upload(filePath, photo, {
-            contentType: photo.type || "application/octet-stream",
+          .upload(newFilePath, photo, {
+            contentType: filePreparation.contentType,
             upsert: false,
           });
         if (uploadError) throw uploadError;
         
         const { data: urlData } = supabase.storage
           .from("photos")
-          .getPublicUrl(filePath);
+          .getPublicUrl(newFilePath);
         finalPhotoUrl = urlData.publicUrl;
+        
+        // Mark old photo for deletion if it exists and is being replaced
+        if (existingFilePath) {
+          photoToDeletePath = existingFilePath;
+        }
       }
       
       // Update the entry with photo_urls
@@ -284,13 +334,10 @@ function EditContent() {
         places_km: trimmed.places_km || null,
         description_en: trimmed.description_en,
         description_km: trimmed.description_km || null,
-        updated_at: new Date().toISOString(),
       };
       
-      // Only update photo_urls if we have a new photo or need to preserve existing
-      if (photo || existingPhotoUrl) {
-        updateData.photo_urls = finalPhotoUrl ? [finalPhotoUrl] : [];
-      }
+      // Update photo_urls based on final state
+      updateData.photo_urls = finalPhotoUrl ? [finalPhotoUrl] : [];
       
       const { error } = await supabase
         .from("entries")
@@ -299,6 +346,23 @@ function EditContent() {
         .eq("owner", currentUser.id); // Ensure user owns the entry
       
       if (error) throw error;
+      
+      // Delete old photo from storage if marked for deletion
+      if (photoToDeletePath) {
+        try {
+          const { error: deleteError } = await supabase.storage
+            .from("photos")
+            .remove([photoToDeletePath]);
+          
+          if (deleteError) {
+            console.warn("Failed to delete old photo from storage:", deleteError);
+            // Don't throw - we've already updated the entry successfully
+          }
+        } catch (deleteErr) {
+          console.warn("Error deleting old photo:", deleteErr);
+          // Continue - the entry update was successful
+        }
+      }
       
       // Redirect back to the entry page
       router.push(`/entry/${id}${locale && locale !== "en" ? `?lang=${locale}` : ""}`);
@@ -569,6 +633,42 @@ function EditContent() {
                       View existing photo
                     </a>
                   </p>
+                  <div style={{ display: "flex", gap: 8, marginBottom: 8 }}>
+                    <button
+                      type="button"
+                      onClick={() => setRemoveCurrentPhoto(true)}
+                      style={{
+                        padding: "6px 12px",
+                        backgroundColor: removeCurrentPhoto ? "#FEF2F2" : "#F1F5F9",
+                        border: "1px solid #FECACA",
+                        color: "#DC2626",
+                        borderRadius: 4,
+                        fontSize: 13,
+                        fontWeight: 500,
+                        cursor: "pointer"
+                      }}
+                    >
+                      {removeCurrentPhoto ? "Will remove photo" : "Remove photo"}
+                    </button>
+                    {removeCurrentPhoto && (
+                      <button
+                        type="button"
+                        onClick={() => setRemoveCurrentPhoto(false)}
+                        style={{
+                          padding: "6px 12px",
+                          backgroundColor: "#F1F5F9",
+                          border: "1px solid #93C5FD",
+                          color: "#64748B",
+                          borderRadius: 4,
+                          fontSize: 13,
+                          fontWeight: 500,
+                          cursor: "pointer"
+                        }}
+                      >
+                        Keep photo
+                      </button>
+                    )}
+                  </div>
                   <p style={{ fontSize: 13, color: "#94A3B8" }}>
                     Upload a new photo below to replace it (optional)
                   </p>
@@ -586,11 +686,13 @@ function EditContent() {
                 <p style={styles.fieldError}>{errors.photo}</p>
               ) : (
                 <span style={styles.counter}>
-                  {photo
-                    ? `${photo.name} (${(photo.size / (1024 * 1024)).toFixed(2)} MB)`
-                    : existingPhotoUrl 
-                      ? "Keep current photo or upload a new one (JPG, PNG, or WebP, max 5 MB)"
-                      : "JPG, PNG, or WebP, max 5 MB"}
+                  {removeCurrentPhoto 
+                    ? "Photo will be removed"
+                    : photo
+                      ? `${photo.name} (${(photo.size / (1024 * 1024)).toFixed(2)} MB)`
+                      : existingPhotoUrl 
+                        ? "Keep current photo or upload a new one (JPG, PNG, or WebP, max 5 MB)"
+                        : "JPG, PNG, or WebP, max 5 MB"}
                 </span>
               )}
             </div>

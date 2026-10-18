@@ -5,6 +5,12 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import Header from "../../components/header.js";
 import { createClient } from "../../lib/supabase-client.js";
+import { 
+  MAX_FILE_SIZE, 
+  validatePhotoFile,
+  prepareFileForUpload,
+  extractSafeExtension 
+} from "../../lib/file-validation.js";
 
 // Max character counts (measured after trimming) for each text field.
 const MAX_LENGTHS = {
@@ -29,8 +35,8 @@ const FIELD_LABELS = {
   description_km: "Description (Khmer)",
 };
 
-const MAX_PHOTO_SIZE = 5 * 1024 * 1024; // 5 MB in bytes
-const PHOTO_TYPES = ["image/jpeg", "image/png", "image/webp"];
+// MAX_FILE_SIZE is imported from file-validation.js (5 MB)
+// Photo types are now validated in the file-validation module
 
 const EMPTY_VALUES = {
   title_en: "",
@@ -97,16 +103,13 @@ function validate(values, photo) {
     }
   });
 
-  // Photo: required, JPEG/PNG/WebP only, max 5 MB.
+  // Photo: required, strict validation using file-validation.js
   if (!photo) {
     errors.photo = "Please choose a photo.";
   } else {
-    const typeOk = PHOTO_TYPES.includes((photo.type || "").toLowerCase());
-    const extOk = /\.(jpe?g|png|webp)$/i.test(photo.name || "");
-    if (!typeOk && !extOk) {
-      errors.photo = "Photo must be a JPG, PNG, or WebP image.";
-    } else if (photo.size > MAX_PHOTO_SIZE) {
-      errors.photo = "Photo must be 5 MB or smaller.";
+    const validation = validatePhotoFile(photo);
+    if (!validation.isValid) {
+      errors.photo = validation.error;
     }
   }
 
@@ -192,13 +195,18 @@ function ContributeContent() {
       // Upload the photo to the 'photos' bucket: <user_id>/<random_uuid>.<ext>
       let photoUrl = "";
       if (photo) {
-        const extMatch = /\.([a-zA-Z0-9]+)$/.exec(photo.name);
-        const ext = extMatch ? extMatch[1].toLowerCase() : "jpg";
-        const filePath = `${currentUser.id}/${makePhotoId()}.${ext}`;
+        // Strict file validation and preparation
+        const filePreparation = prepareFileForUpload(photo);
+        if (!filePreparation.isValid) {
+          throw new Error(filePreparation.error);
+        }
+        
+        const safeExtension = filePreparation.safeExtension;
+        const filePath = `${currentUser.id}/${makePhotoId()}.${safeExtension}`;
         const { error: uploadError } = await supabase.storage
           .from("photos")
           .upload(filePath, photo, {
-            contentType: photo.type || "application/octet-stream",
+            contentType: filePreparation.contentType,
             upsert: false,
           });
         if (uploadError) throw uploadError;
