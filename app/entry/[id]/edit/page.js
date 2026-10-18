@@ -99,7 +99,7 @@ function validate(values, photo, removeCurrentPhoto = false) {
     errors.title_en = "Title (English) is required.";
   } else if (charCount(values.title_en) > MAX_LENGTHS.title_en) {
     errors.title_en = `Title (English) must be ${MAX_LENGTHS.title_en} characters or fewer (currently ${charCount(values.title_en)}).`;
-  } else if (!/[\\p{L}\\p{N}]/u.test(values.title_en)) {
+  } else if (!/[\p{L}\p{N}]/u.test(values.title_en)) {
     errors.title_en = "Title (English) cannot be only spaces or symbols.";
   }
 
