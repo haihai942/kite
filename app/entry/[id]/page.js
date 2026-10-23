@@ -86,6 +86,32 @@ function EntryContent() {
   const contributor = getText("contributor") || "Unknown contributor";
   const place = getText("places");
 
+  // Status badge configuration
+  const STATUS_LABELS = {
+    pending: { en: "Pending", km: "កំពុងរង់ចាំការពិនិត្យ" },
+    published: { en: "Published", km: "ត្រូវបានចែករំលែក" },
+  };
+
+  const getStatusText = (status) => {
+    const label = STATUS_LABELS[status] || STATUS_LABELS.pending;
+    return label[locale] || label.en;
+  };
+
+  const getStatusBadgeStyle = (status) => {
+    const baseStyle = { ...styles.statusBadge };
+    if (status === 'published') {
+      baseStyle.backgroundColor = '#DCFCE7';
+      baseStyle.color = '#059669';
+      baseStyle.border = '1px solid #86EFAC';
+    } else if (status === 'rejected') {
+      baseStyle.backgroundColor = '#FEE2E2';
+      baseStyle.color = '#DC2626';
+      baseStyle.border = '1px solid #FCA5A5';
+    }
+    // pending keeps the default yellow style defined in styles.statusBadge
+    return baseStyle;
+  };
+
   // Handle delete entry - opens confirmation modal
   const handleDeleteClick = () => {
     setIsDeleteModalOpen(true);
@@ -123,7 +149,14 @@ function EntryContent() {
       <main style={styles.wrap}>
         <div style={styles.header}>
           <p style={styles.kicker}>KHMER LIVING ARCHIVE</p>
-          <h1 style={styles.title}>{loading ? "Entry" : title}</h1>
+          <div style={styles.titleRow}>
+            <h1 style={styles.title}>{loading ? "Entry" : title}</h1>
+            {!loading && !error && entry && (
+              <span style={getStatusBadgeStyle(entry.status || 'pending')}>
+                {getStatusText(entry.status || 'pending')}
+              </span>
+            )}
+          </div>
           {!loading && !error && entry && (
             <p style={styles.meta}>
               {contributor}
@@ -161,6 +194,7 @@ function EntryContent() {
                 </div>
                 <div style={styles.actionsButtons}>
                   <button 
+                    type="button"
                     onClick={handleEdit} 
                     style={styles.editButton}
                     disabled={deleting}
@@ -168,6 +202,7 @@ function EntryContent() {
                     Edit Entry
                   </button>
                   <button 
+                    type="button"
                     onClick={handleDeleteClick} 
                     style={styles.deleteButton}
                     disabled={deleting}
@@ -200,7 +235,15 @@ function EntryContent() {
 
         {/* Delete Confirmation Modal */}
         {isDeleteModalOpen && (
-          <div style={styles.modalBackdrop}>
+          <div 
+            style={styles.modalBackdrop}
+            onClick={(e) => {
+              // Close modal when clicking on backdrop (outside modal content)
+              if (e.target === e.currentTarget) {
+                setIsDeleteModalOpen(false);
+              }
+            }}
+          >
             <div style={styles.modalContent}>
               <h3 style={styles.modalTitle}>Delete Entry</h3>
               <p style={styles.modalText}>
@@ -208,12 +251,14 @@ function EntryContent() {
               </p>
               <div style={styles.modalButtons}>
                 <button
+                  type="button"
                   onClick={() => setIsDeleteModalOpen(false)}
                   style={styles.modalCancelButton}
                 >
                   Cancel
                 </button>
                 <button
+                  type="button"
                   onClick={handleDeleteConfirm}
                   style={styles.modalDeleteButton}
                 >
@@ -265,6 +310,25 @@ const styles = {
     margin: "16px 0 12px",
     lineHeight: 1.2,
     color: "#1E3A8A",
+    flex: 1,
+  },
+  titleRow: {
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "flex-start",
+    gap: 12,
+    flexWrap: "wrap",
+  },
+  statusBadge: {
+    padding: "6px 12px",
+    backgroundColor: "#FEF3C7",
+    color: "#D97706",
+    borderRadius: 6,
+    fontSize: 12,
+    fontWeight: 600,
+    border: "1px solid #FBBF24",
+    whiteSpace: "nowrap",
+    marginTop: 16,
   },
   meta: {
     fontSize: 16,

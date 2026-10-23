@@ -91,7 +91,7 @@ function trimValues(values) {
   return trimmed;
 }
 
-function validate(values, photo, removeCurrentPhoto = false) {
+function validate(values, photo, removeCurrentPhoto = false, existingPhotoUrl = "") {
   const errors = {};
 
   // Title (English): required, max 30 chars, not blank spaces or symbols only.
@@ -125,14 +125,34 @@ function validate(values, photo, removeCurrentPhoto = false) {
     }
   });
 
-  // Photo validation (optional for editing, but if provided must be valid)
-  // No photo validation needed if user is removing the current photo
-  if (photo && !removeCurrentPhoto) {
+  // Photo validation for editing
+  // Photo is required for entries - either keep existing or upload new
+  // User can intentionally remove photo with "Remove photo" checkbox
+  
+  if (removeCurrentPhoto) {
+    // User is removing the current photo
+    // If removing current photo, a new photo MUST be uploaded
+    if (!photo) {
+      errors.photo = "Please upload a new photo. Every entry must have at least one photo.";
+    } else {
+      // Validate the new photo being uploaded
+      const validation = validatePhotoFile(photo);
+      if (!validation.isValid) {
+        errors.photo = validation.error;
+      }
+    }
+  } else if (photo) {
+    // User is uploading a new photo (optional replacement) - validate it
     const validation = validatePhotoFile(photo);
     if (!validation.isValid) {
       errors.photo = validation.error;
     }
+  } else if (!existingPhotoUrl) {
+    // No existing photo, no new photo uploaded, not removing (nothing to remove)
+    // Entry would have no photo - require a photo
+    errors.photo = "Please upload a photo. Every entry must have at least one photo.";
   }
+  // else: keeping existing photo (existingPhotoUrl exists) - no validation needed
 
   return errors;
 }
@@ -157,6 +177,7 @@ function EditContent() {
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState("");
   const [removeCurrentPhoto, setRemoveCurrentPhoto] = useState(false);
+  const [showPhotoRemoveConfirm, setShowPhotoRemoveConfirm] = useState(false);
 
   // Fetch current user and check ownership
   useEffect(() => {
@@ -241,7 +262,7 @@ function EditContent() {
     const trimmed = trimValues({ [field]: values[field] });
     const newValues = { ...values, ...trimmed };
     setValues(newValues);
-    const newErrors = validate(newValues, photo, removeCurrentPhoto);
+    const newErrors = validate(newValues, photo, removeCurrentPhoto, existingPhotoUrl);
     if (newErrors[field]) {
       setErrors((prev) => ({ ...prev, [field]: newErrors[field] }));
     }
@@ -256,10 +277,9 @@ function EditContent() {
       setRemoveCurrentPhoto(false);
     }
     
-    if (errors.photo) {
-      const nextErrors = validate(values, file || null, removeCurrentPhoto);
-      setErrors((prev) => ({ ...prev, photo: nextErrors.photo || "" }));
-    }
+    // Always validate when photo changes
+    const nextErrors = validate(values, file || null, removeCurrentPhoto, existingPhotoUrl);
+    setErrors((prev) => ({ ...prev, photo: nextErrors.photo || "" }));
   };
 
   const handleSubmit = async (e) => {
@@ -268,7 +288,7 @@ function EditContent() {
     const trimmed = trimValues(values);
     setValues(trimmed);
     
-    const validationErrors = validate(trimmed, photo, removeCurrentPhoto);
+    const validationErrors = validate(trimmed, photo, removeCurrentPhoto, existingPhotoUrl);
     if (Object.keys(validationErrors).length > 0) {
       setErrors(validationErrors);
       return;
@@ -291,12 +311,33 @@ function EditContent() {
       let photoToDeletePath = null;
       
       // Handle photo removal or replacement
-      if (removeCurrentPhoto) {
-        // User wants to remove the current photo
+      if (removeCurrentPhoto && photo) {
+        // User is removing current photo AND uploading a new one
+        // Delete old photo and upload new one
         photoToDeletePath = existingFilePath;
-        finalPhotoUrl = ""; // Will result in empty photo_urls array
+        
+        // Upload the new photo
+        const filePreparation = prepareFileForUpload(photo);
+        if (!filePreparation.isValid) {
+          throw new Error(filePreparation.error);
+        }
+        
+        const safeExtension = filePreparation.safeExtension;
+        const newFilePath = `${currentUser.id}/${makePhotoId()}.${safeExtension}`;
+        const { error: uploadError } = await supabase.storage
+          .from("photos")
+          .upload(newFilePath, photo, {
+            contentType: filePreparation.contentType,
+            upsert: false,
+          });
+        if (uploadError) throw uploadError;
+        
+        const { data: urlData } = supabase.storage
+          .from("photos")
+          .getPublicUrl(newFilePath);
+        finalPhotoUrl = urlData.publicUrl;
       } else if (photo) {
-        // User is uploading a new photo
+        // User is uploading a new photo (not removing current one)
         // Strict file validation and preparation
         const filePreparation = prepareFileForUpload(photo);
         if (!filePreparation.isValid) {
@@ -322,6 +363,11 @@ function EditContent() {
         if (existingFilePath) {
           photoToDeletePath = existingFilePath;
         }
+      } else if (removeCurrentPhoto) {
+        // User wants to remove current photo without uploading a new one
+        // This should not pass validation, but handle defensively
+        photoToDeletePath = existingFilePath;
+        finalPhotoUrl = ""; // Will result in empty photo_urls array
       }
       
       // Check if user is a reviewer
@@ -390,6 +436,16 @@ function EditContent() {
 
   const handleCancel = () => {
     router.push(`/entry/${id}${locale && locale !== "en" ? `?lang=${locale}` : ""}`);
+  };
+
+  const handlePhotoRemoveConfirm = () => {
+    setRemoveCurrentPhoto(true);
+    // Clear the current photo upload if any
+    setPhoto(null);
+    // Reset the file input
+    setPhotoKey(prev => prev + 1);
+    // Close the confirmation modal
+    setShowPhotoRemoveConfirm(false);
   };
 
   if (authLoading || loading) {
@@ -651,7 +707,19 @@ function EditContent() {
                   <div style={{ display: "flex", gap: 8, marginBottom: 8 }}>
                     <button
                       type="button"
-                      onClick={() => setRemoveCurrentPhoto(true)}
+                      onClick={() => {
+                        if (removeCurrentPhoto) {
+                          // If already in removal mode, clicking should keep the photo
+                          setRemoveCurrentPhoto(false);
+                          // Clear any photo validation error since we're keeping the photo
+                          if (errors.photo && errors.photo.includes("upload a new photo")) {
+                            setErrors(prev => ({ ...prev, photo: "" }));
+                          }
+                        } else {
+                          // Show confirmation modal before removing photo
+                          setShowPhotoRemoveConfirm(true);
+                        }
+                      }}
                       style={{
                         padding: "6px 12px",
                         backgroundColor: removeCurrentPhoto ? "#FEF2F2" : "#F1F5F9",
@@ -663,29 +731,13 @@ function EditContent() {
                         cursor: "pointer"
                       }}
                     >
-                      {removeCurrentPhoto ? "Will remove photo" : "Remove photo"}
+                      {removeCurrentPhoto ? "Undo removal" : "Remove photo"}
                     </button>
-                    {removeCurrentPhoto && (
-                      <button
-                        type="button"
-                        onClick={() => setRemoveCurrentPhoto(false)}
-                        style={{
-                          padding: "6px 12px",
-                          backgroundColor: "#F1F5F9",
-                          border: "1px solid #93C5FD",
-                          color: "#64748B",
-                          borderRadius: 4,
-                          fontSize: 13,
-                          fontWeight: 500,
-                          cursor: "pointer"
-                        }}
-                      >
-                        Keep photo
-                      </button>
-                    )}
                   </div>
                   <p style={{ fontSize: 13, color: "#94A3B8" }}>
-                    Upload a new photo below to replace it (optional)
+                    {removeCurrentPhoto 
+                      ? "Upload a new photo below to replace it (required)" 
+                      : "Upload a new photo below to replace it (optional)"}
                   </p>
                 </div>
               )}
@@ -702,7 +754,7 @@ function EditContent() {
               ) : (
                 <span style={styles.counter}>
                   {removeCurrentPhoto 
-                    ? "Photo will be removed"
+                    ? "Photo will be removed. Please upload a new photo below."
                     : photo
                       ? `${photo.name} (${(photo.size / (1024 * 1024)).toFixed(2)} MB)`
                       : existingPhotoUrl 
@@ -738,9 +790,46 @@ function EditContent() {
         <footer style={styles.footer}>
             Built in ICT 340 — Vibe Coding, Archived Kites new thing.
           </footer>
-      </main>
-    </>
-  );
+
+          {/* Photo Removal Confirmation Modal */}
+          {showPhotoRemoveConfirm && (
+            <div 
+              style={styles.modalBackdrop}
+              onClick={(e) => {
+                // Close modal when clicking on backdrop (outside modal content)
+                if (e.target === e.currentTarget) {
+                  setShowPhotoRemoveConfirm(false);
+                }
+              }}
+            >
+              <div style={styles.modalContent}>
+                <h3 style={styles.modalTitle}>Remove Photo</h3>
+                <p style={styles.modalText}>
+                  Are you sure you want to remove the current photo from this entry? 
+                  You must upload a new photo to replace it.
+                </p>
+                <div style={styles.modalButtons}>
+                  <button
+                    type="button"
+                    onClick={() => setShowPhotoRemoveConfirm(false)}
+                    style={styles.modalCancelButton}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handlePhotoRemoveConfirm}
+                    style={styles.modalConfirmButton}
+                  >
+                    Remove Photo
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+        </main>
+      </>
+    );
 }
 
 export default function EditPage() {
@@ -953,5 +1042,70 @@ const styles = {
     borderBottomStyle: "none",
     fontSize: 13,
     color: "#64748B",
+  },
+  // Modal styles for photo removal confirmation
+  modalBackdrop: {
+    position: "fixed",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: "rgba(0, 0, 0, 0.5)",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    zIndex: 1000,
+  },
+  modalContent: {
+    backgroundColor: "#FFFFFF",
+    borderRadius: 12,
+    padding: 24,
+    maxWidth: 400,
+    width: "90%",
+    boxShadow: "0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)",
+    borderWidth: "1px",
+    borderStyle: "solid",
+    borderColor: "#93C5FD",
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: 600,
+    color: "#1E3A8A",
+    margin: "0 0 16px",
+  },
+  modalText: {
+    fontSize: 16,
+    color: "#64748B",
+    lineHeight: 1.6,
+    margin: "0 0 24px",
+  },
+  modalButtons: {
+    display: "flex",
+    gap: 12,
+    justifyContent: "flex-end",
+  },
+  modalCancelButton: {
+    padding: "10px 20px",
+    backgroundColor: "#F8FAFC",
+    borderWidth: "1px",
+    borderStyle: "solid",
+    borderColor: "#CBD5E1",
+    color: "#475569",
+    borderRadius: 6,
+    fontSize: 14,
+    fontWeight: 600,
+    cursor: "pointer",
+    flex: 1,
+  },
+  modalConfirmButton: {
+    padding: "10px 20px",
+    backgroundColor: "#DC2626",
+    border: "none",
+    color: "#FFFFFF",
+    borderRadius: 6,
+    fontSize: 14,
+    fontWeight: 600,
+    cursor: "pointer",
+    flex: 1,
   },
 };

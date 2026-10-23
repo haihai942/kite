@@ -69,7 +69,22 @@ function MyEntriesPage() {
 
   const getStatusText = (status) => {
     const label = STATUS_LABELS[status] || STATUS_LABELS.pending;
-    return `${label.en} / ${label.km}`;
+    return label[locale] || label.en;
+  };
+
+  const getStatusBadgeStyle = (status) => {
+    const baseStyle = { ...styles.statusBadge };
+    if (status === 'published') {
+      baseStyle.backgroundColor = '#DCFCE7';
+      baseStyle.color = '#15803D';
+      baseStyle.border = '1px solid #86EFAC';
+    } else if (status === 'returned') {
+      baseStyle.backgroundColor = '#FEE2E2';
+      baseStyle.color = '#DC2626';
+      baseStyle.border = '1px solid #FCA5A5';
+    }
+    // pending keeps the default yellow style defined in styles.statusBadge
+    return baseStyle;
   };
 
   if (authLoading) {
@@ -128,7 +143,7 @@ function MyEntriesPage() {
                 <div key={entry.id} style={styles.entryCard}>
                   <div style={styles.entryHeader}>
                     <h3 style={styles.entryTitle}>{getText(entry, 'title') || "Untitled"}</h3>
-                    <span style={styles.statusBadge}>{getStatusText(entry.status || 'pending')}</span>
+                    <span style={getStatusBadgeStyle(entry.status || 'pending')}>{getStatusText(entry.status || 'pending')}</span>
                   </div>
                   <p style={styles.entryDescription}>
                     {getText(entry, 'description')?.substring(0, 150) || "No description available"}...

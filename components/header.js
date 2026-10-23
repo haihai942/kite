@@ -139,7 +139,7 @@ export default function Header({ locale }) {
             ) : user ? (
               <div style={styles.userInfo}>
                 <span style={styles.userEmail}>{user.email}</span>
-                <button onClick={handleLogout} style={styles.logoutButton}>
+                <button type="button" onClick={handleLogout} style={styles.logoutButton}>
                   Logout
                 </button>
               </div>
@@ -155,7 +155,7 @@ export default function Header({ locale }) {
             )}
           </div>
 
-          <button onClick={toggleLanguage} style={styles.langButton}>
+          <button type="button" onClick={toggleLanguage} style={styles.langButton}>
             {locale === "en" ? "🇰🇭 ភាសាខ្មែរ" : "🇬🇧 English"}
           </button>
         </div>
