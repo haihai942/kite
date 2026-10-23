@@ -115,6 +115,11 @@ export default function Header({ locale }) {
             <Link href={getCleanPageUrl("/contribute")} style={styles.link}>
               Contribute
             </Link>
+            {!loading && user && (
+              <Link href={getCleanPageUrl("/my-entries")} style={styles.link}>
+                {locale === "km" ? "ការដាក់ស្នើរបស់ខ្ញុំ" : "My Entries"}
+              </Link>
+            )}
           </nav>
 
           <form onSubmit={handleSearch} style={styles.searchForm}>

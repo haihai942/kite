@@ -128,6 +128,7 @@ function ContributeContent() {
   const [errors, setErrors] = useState({});
   const [submitError, setSubmitError] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [submitted, setSubmitted] = useState(false);
 
   // Check the current session; only logged-in users can submit.
   useEffect(() => {
@@ -217,9 +218,9 @@ function ContributeContent() {
         photoUrl = urlData.publicUrl;
       }
 
-      // Insert the new entry, listing every column explicitly, and ask for
-      // the new row's id so we can redirect to its entry page.
-      const { data: inserted, error: insertError } = await supabase
+      // Insert the new entry, listing every column explicitly.
+      // The database default will set status to 'pending'
+      const { error: insertError } = await supabase
         .from("entries")
         .insert({
           owner: currentUser.id,
@@ -232,13 +233,11 @@ function ContributeContent() {
           description_en: trimmed.description_en,
           description_km: trimmed.description_km,
           photo_urls: photoUrl ? [photoUrl] : [],
-        })
-        .select("id")
-        .single();
+        });
       if (insertError) throw insertError;
 
-      // Redirect to the newly created entry.
-      router.push(`/entry/${inserted.id}`);
+      // Show success message instead of redirecting
+      setSubmitted(true);
     } catch (err) {
       // Log the real error, but only ever show a friendly generic message.
       console.error("Error submitting entry:", err);
@@ -280,6 +279,20 @@ function ContributeContent() {
                 Create an account
               </Link>
             </p>
+          </div>
+        ) : submitted ? (
+          <div style={styles.card}>
+            <div style={styles.successContainer}>
+              <p style={styles.successText}>
+                Your entry has been submitted and is waiting for review.
+              </p>
+              <p style={styles.successText}>
+                ការដាក់ស្នើរបស់អ្នកត្រូវបានទទួល និងកំពុងរង់ចាំការពិនិត្យ។
+              </p>
+              <Link href="/my-entries" style={styles.buttonLink}>
+                View My Entries
+              </Link>
+            </div>
           </div>
         ) : (
           <div style={styles.card}>
@@ -712,5 +725,19 @@ const styles = {
     borderBottomStyle: "none",
     fontSize: 13,
     color: "#64748B",
+  },
+  successContainer: {
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "center",
+    textAlign: "center",
+    gap: 16,
+  },
+  successText: {
+    fontSize: 18,
+    color: "#16A34A",
+    fontWeight: 500,
+    lineHeight: 1.6,
+    margin: 0,
   },
 };

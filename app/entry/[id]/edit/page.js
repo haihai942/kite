@@ -324,6 +324,10 @@ function EditContent() {
         }
       }
       
+      // Check if user is a reviewer
+      const { data: isReviewerData, error: reviewerError } = await supabase
+        .rpc('is_reviewer');
+      
       // Update the entry with photo_urls
       const updateData = {
         title_en: trimmed.title_en,
@@ -339,13 +343,24 @@ function EditContent() {
       // Update photo_urls based on final state
       updateData.photo_urls = finalPhotoUrl ? [finalPhotoUrl] : [];
       
-      const { error } = await supabase
+      // Set status to 'pending' unless user is a reviewer
+      // Only set status to pending if is_reviewer returns false or there's an error
+      const isReviewer = !reviewerError && isReviewerData;
+      if (!isReviewer) {
+        updateData.status = 'pending';
+      }
+      
+      const { data: updatedRows, error } = await supabase
         .from("entries")
         .update(updateData)
         .eq("id", id)
-        .eq("owner", currentUser.id); // Ensure user owns the entry
+        .eq("owner", currentUser.id) // Ensure user owns the entry
+        .select(); // Check that a row came back
       
       if (error) throw error;
+      if (!updatedRows || updatedRows.length === 0) {
+        throw new Error("Entry not found or you don't have permission to edit it.");
+      }
       
       // Delete old photo from storage if marked for deletion
       if (photoToDeletePath) {
