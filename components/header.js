@@ -120,6 +120,11 @@ export default function Header({ locale }) {
                 {locale === "km" ? "ការដាក់ស្នើរបស់ខ្ញុំ" : "My Entries"}
               </Link>
             )}
+            {!loading && user && user.id === "7ef3e962-5de4-406d-a630-2ada73486f62" && (
+              <Link href={getCleanPageUrl("/reviewer-queue")} style={styles.link}>
+                Review Queue
+              </Link>
+            )}
           </nav>
 
           <form onSubmit={handleSearch} style={styles.searchForm}>

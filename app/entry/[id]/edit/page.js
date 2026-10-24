@@ -9,6 +9,7 @@ import {
   validatePhotoFile,
   prepareFileForUpload
 } from "../../../../lib/file-validation.js";
+import { isUserReviewer } from "../../../../lib/reviewer-auth.js";
 
 // Max character counts (measured after trimming) for each text field.
 const MAX_LENGTHS = {
@@ -371,8 +372,7 @@ function EditContent() {
       }
       
       // Check if user is a reviewer
-      const { data: isReviewerData, error: reviewerError } = await supabase
-        .rpc('is_reviewer');
+      const isReviewer = await isUserReviewer(supabase, currentUser);
       
       // Update the entry with photo_urls
       const updateData = {
@@ -390,8 +390,6 @@ function EditContent() {
       updateData.photo_urls = finalPhotoUrl ? [finalPhotoUrl] : [];
       
       // Set status to 'pending' unless user is a reviewer
-      // Only set status to pending if is_reviewer returns false or there's an error
-      const isReviewer = !reviewerError && isReviewerData;
       if (!isReviewer) {
         updateData.status = 'pending';
       }
