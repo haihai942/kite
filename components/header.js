@@ -2,12 +2,11 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import { useRouter, useSearchParams, usePathname } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 import { createClient } from "../lib/supabase-client.js";
 
 export default function Header({ locale }) {
   const router = useRouter();
-  const searchParams = useSearchParams();
   const pathname = usePathname();
 
   const [searchTerm, setSearchTerm] = useState("");
@@ -44,20 +43,6 @@ export default function Header({ locale }) {
     };
   }, [supabase.auth]);
 
-  // Helper to maintain existing query parameters (like language)
-  const buildUrl = (targetPath, newParams = {}) => {
-    const params = new URLSearchParams(searchParams.toString());
-    Object.entries(newParams).forEach(([key, val]) => {
-      if (val !== undefined && val !== null && val !== "") {
-        params.set(key, val);
-      } else {
-        params.delete(key);
-      }
-    });
-    const queryString = params.toString();
-    return queryString ? `${targetPath}?${queryString}` : targetPath;
-  };
-
   const handleSearch = (e) => {
     e.preventDefault();
 
@@ -75,7 +60,9 @@ export default function Header({ locale }) {
 
   const toggleLanguage = () => {
     const nextLang = locale === "en" ? "km" : "en";
-    router.push(buildUrl(pathname, { lang: nextLang }));
+    // Simple URL with just the language parameter
+    const queryString = `lang=${nextLang}`;
+    router.push(`${pathname}?${queryString}`);
   };
 
   // Handle logout
@@ -91,7 +78,7 @@ export default function Header({ locale }) {
 
   // Preserves language parameter while clearing search query
   const getCleanPageUrl = (targetPath) => {
-    const lang = searchParams.get("lang");
+    const lang = locale; // Use the locale prop instead of searchParams.get("lang")
     return lang ? `${targetPath}?lang=${lang}` : targetPath;
   };
 
