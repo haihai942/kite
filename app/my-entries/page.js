@@ -152,6 +152,12 @@ function MyEntriesPage() {
                     <span style={styles.metaItem}>Contributor: {getText(entry, 'contributor') || "Unknown"}</span>
                     <span style={styles.metaItem}>Submitted: {new Date(entry.created_at).toLocaleDateString()}</span>
                   </div>
+                  {entry.review_note && entry.review_note.trim() && (
+                    <div style={styles.reviewNoteBox}>
+                      <div style={styles.reviewNoteLabel}>Reviewer Note</div>
+                      <div style={styles.reviewNoteText}>{entry.review_note}</div>
+                    </div>
+                  )}
                   <div style={styles.entryActions}>
                     <Link href={`/entry/${entry.id}?lang=${locale}`} style={styles.viewButton}>
                       View Entry
@@ -202,5 +208,28 @@ const styles = {
   helperText: { fontSize: 14, color: "#64748B", margin: "16px 0 0" },
   link: { color: "#1E40AF", fontWeight: 600, textDecoration: "none" },
   footer: { marginTop: 64, paddingTop: 24, borderTop: "1px solid #93C5FD", fontSize: 13, color: "#64748B" },
+  reviewNoteBox: {
+    marginTop: 8,
+    padding: "12px 16px",
+    backgroundColor: "#FFFBEB",
+    border: "1px solid #F59E0B",
+    borderRadius: 8,
+    fontSize: 14,
+    lineHeight: 1.5,
+  },
+  reviewNoteLabel: {
+    fontSize: 12,
+    fontWeight: 700,
+    color: "#92400E",
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
+    marginBottom: 6,
+  },
+  reviewNoteText: {
+    fontSize: 14,
+    color: "#78350F",
+    lineHeight: 1.5,
+    whiteSpace: "pre-wrap",
+  },
 };
 export default MyEntriesPage;
