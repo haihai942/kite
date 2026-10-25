@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import Header from "../../components/header.js";
@@ -12,7 +12,7 @@ const STATUS_LABELS = {
   returned: { en: "Returned", km: "ត្រូវតម្រូវឱ្យកែសម្រួលវិញ" }
 };
 
-function MyEntriesPage() {
+function MyEntriesContent() {
   const searchParams = useSearchParams();
   const [entries, setEntries] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -232,4 +232,16 @@ const styles = {
     whiteSpace: "pre-wrap",
   },
 };
-export default MyEntriesPage;
+export default function MyEntriesPage() {
+  return (
+    <Suspense
+      fallback={
+        <div style={{ padding: 40, textAlign: "center" }}>
+          Loading...
+        </div>
+      }
+    >
+      <MyEntriesContent />
+    </Suspense>
+  );
+}
