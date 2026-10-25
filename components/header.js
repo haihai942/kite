@@ -63,7 +63,7 @@ export default function Header({ locale }) {
 
     // Clean leading/trailing spaces and collapse multiple inner spaces
     const cleanQuery = searchTerm.trim().replace(/\s+/g, " ");
-    const lang = searchParams.get("lang");
+    const lang = locale; // Use the locale prop instead of searchParams.get("lang")
 
     const params = new URLSearchParams();
     if (cleanQuery) params.set("q", cleanQuery);

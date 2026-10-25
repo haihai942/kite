@@ -143,7 +143,7 @@ function MyEntriesContent() {
   if (authLoading) {
     return (
       <>
-        <Header locale={locale} />
+        <Header locale="en" />
         <main style={styles.wrap}>
           <div style={styles.loadingContainer}>
             <p style={styles.loadingText}>Loading...</p>
@@ -156,7 +156,7 @@ function MyEntriesContent() {
   if (!user) {
     return (
       <>
-        <Header locale={locale} />
+        <Header locale="en" />
         <main style={styles.wrap}>
           <p style={styles.kicker}>MY ENTRIES</p>
           <h1 style={styles.title}>My Entries / ការដាក់ស្នើរបស់ខ្ញុំ</h1>
