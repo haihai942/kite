@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter, usePathname } from "next/navigation";
 import { createClient } from "../lib/supabase-client.js";
+import { isUserReviewer } from "../lib/reviewer-auth.js";
 
 export default function Header({ locale }) {
   const router = useRouter();
@@ -12,6 +13,7 @@ export default function Header({ locale }) {
   const [searchTerm, setSearchTerm] = useState("");
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [isReviewer, setIsReviewer] = useState(false);
 
   // Initialize Supabase client
   const supabase = createClient();
@@ -22,6 +24,13 @@ export default function Header({ locale }) {
       try {
         const { data: { user } } = await supabase.auth.getUser();
         setUser(user);
+        // Check if user is a reviewer
+        if (user) {
+          const reviewerStatus = await isUserReviewer(supabase, user);
+          setIsReviewer(reviewerStatus);
+        } else {
+          setIsReviewer(false);
+        }
       } catch (error) {
         console.error("Error getting user:", error);
       } finally {
@@ -33,8 +42,16 @@ export default function Header({ locale }) {
 
     // Set up auth state change listener
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (event, session) => {
-        setUser(session?.user || null);
+      async (event, session) => {
+        const currentUser = session?.user || null;
+        setUser(currentUser);
+        // Update reviewer status when auth state changes
+        if (currentUser) {
+          const reviewerStatus = await isUserReviewer(supabase, currentUser);
+          setIsReviewer(reviewerStatus);
+        } else {
+          setIsReviewer(false);
+        }
       }
     );
 
@@ -107,7 +124,7 @@ export default function Header({ locale }) {
                 {locale === "km" ? "ការដាក់ស្នើរបស់ខ្ញុំ" : "My Entries"}
               </Link>
             )}
-            {!loading && user && user.id === "7ef3e962-5de4-406d-a630-2ada73486f62" && (
+            {!loading && user && isReviewer && (
               <Link href={getCleanPageUrl("/reviewer-queue")} style={styles.link}>
                 Review Queue
               </Link>

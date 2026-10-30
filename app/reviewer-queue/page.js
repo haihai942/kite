@@ -5,6 +5,7 @@ import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import Header from "../../components/header.js";
 import { createClient } from "../../lib/supabase-client.js";
+import { isUserReviewer } from "../../lib/reviewer-auth.js";
 
 function ReviewerQueuePageContent() {
   const searchParams = useSearchParams();
@@ -14,6 +15,7 @@ function ReviewerQueuePageContent() {
   const [user, setUser] = useState(null);
   const [authLoading, setAuthLoading] = useState(true);
   const [processing, setProcessing] = useState({});
+  const [isReviewer, setIsReviewer] = useState(false);
 
   const locale = searchParams.get("lang") || "en";
 
@@ -22,8 +24,10 @@ function ReviewerQueuePageContent() {
     return entry[`${field}_${locale}`] || entry[`${field}_en`] || "";
   };
 
-  const isAuthorizedReviewer = () => {
-    return user && user.id === "7ef3e962-5de4-406d-a630-2ada73486f62";
+  const isAuthorizedReviewer = async () => {
+    if (!user) return false;
+    const supabase = createClient();
+    return await isUserReviewer(supabase, user);
   };
 
   useEffect(() => {
@@ -34,6 +38,11 @@ function ReviewerQueuePageContent() {
         const { data } = await supabase.auth.getUser();
         if (active) {
           setUser(data.user);
+          // Check if user is a reviewer
+          if (data.user) {
+            const reviewerStatus = await isUserReviewer(supabase, data.user);
+            setIsReviewer(reviewerStatus);
+          }
           setAuthLoading(false);
         }
       } catch (err) {
@@ -74,7 +83,7 @@ function ReviewerQueuePageContent() {
   }, [user]);
 
   const handleReview = async (entryId, action) => {
-    if (!isAuthorizedReviewer()) {
+    if (!(await isAuthorizedReviewer())) {
       setError("You do not have reviewer permissions.");
       return;
     }
@@ -133,7 +142,7 @@ function ReviewerQueuePageContent() {
     );
   }
 
-  if (!isAuthorizedReviewer()) {
+  if (!isReviewer) {
     return (
       <>
         <Header locale={locale} />
