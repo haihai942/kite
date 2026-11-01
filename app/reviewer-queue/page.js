@@ -8,6 +8,9 @@ import { createClient } from "../../lib/supabase-client.js";
 import { isUserReviewer } from "../../lib/reviewer-auth.js";
 import { useLanguage } from "../../contexts/language-context.js";
 
+// Default note saved to the entry when a reviewer approves it.
+const APPROVAL_NOTE = "Thank you for sharing your story with us!";
+
 function ReviewerQueuePageContent() {
   const searchParams = useSearchParams();
   const [entries, setEntries] = useState([]);
@@ -17,6 +20,10 @@ function ReviewerQueuePageContent() {
   const [authLoading, setAuthLoading] = useState(true);
   const [processing, setProcessing] = useState({});
   const [isReviewer, setIsReviewer] = useState(false);
+  // Return-reason modal state
+  const [returnEntryId, setReturnEntryId] = useState(null);
+  const [returnReason, setReturnReason] = useState("");
+  const [returnError, setReturnError] = useState(null);
 
   const { language } = useLanguage();
 
@@ -83,7 +90,7 @@ function ReviewerQueuePageContent() {
     fetchPendingEntries();
   }, [user]);
 
-  const handleReview = async (entryId, action) => {
+  const handleReview = async (entryId, action, noteText = null) => {
     if (!(await isAuthorizedReviewer())) {
       setError("You do not have reviewer permissions.");
       return;
@@ -94,9 +101,12 @@ function ReviewerQueuePageContent() {
     try {
       const supabase = createClient();
       
+      // review_entry(entry_id, decision, note_text) — note_text is stored
+      // on the entry as review_note so the contributor can read it.
       const { data, error } = await supabase.rpc('review_entry', {
         entry_id: entryId,
-        decision: action === 'approve' ? 'published' : 'returned'
+        decision: action === 'approve' ? 'published' : 'returned',
+        note_text: noteText || null
       });
       
       if (error) {
@@ -110,6 +120,29 @@ function ReviewerQueuePageContent() {
     } finally {
       setProcessing(prev => ({ ...prev, [entryId]: false }));
     }
+  };
+
+  // Approve: publish the entry and attach a default thank-you note.
+  const handleApprove = (entryId) => handleReview(entryId, 'approve', APPROVAL_NOTE);
+
+  // Open the return-reason modal for a specific entry.
+  const handleReturnClick = (entryId) => {
+    setReturnEntryId(entryId);
+    setReturnReason("");
+    setReturnError(null);
+  };
+
+  // Confirm the return with the reviewer's feedback note.
+  const handleReturnConfirm = async () => {
+    const trimmedReason = returnReason.trim();
+    if (!trimmedReason) {
+      setReturnError("Please enter a reason so the contributor knows what to fix.");
+      return;
+    }
+    const entryId = returnEntryId;
+    setReturnEntryId(null);
+    await handleReview(entryId, 'return', trimmedReason);
+    setReturnReason("");
   };
 
   if (authLoading) {
@@ -227,7 +260,7 @@ function ReviewerQueuePageContent() {
                   
                   <button 
                     style={styles.approveButton}
-                    onClick={() => handleReview(entry.id, 'approve')}
+                    onClick={() => handleApprove(entry.id)}
                     disabled={processing[entry.id]}
                   >
                     {processing[entry.id] ? "Processing..." : "Approve"}
@@ -235,7 +268,7 @@ function ReviewerQueuePageContent() {
                   
                   <button 
                     style={styles.returnButton}
-                    onClick={() => handleReview(entry.id, 'return')}
+                    onClick={() => handleReturnClick(entry.id)}
                     disabled={processing[entry.id]}
                   >
                     {processing[entry.id] ? "Processing..." : "Return"}
@@ -249,6 +282,55 @@ function ReviewerQueuePageContent() {
         <footer style={styles.footer}>
           Built in ICT 340 — Vibe Coding, Archived Kites new thing.
         </footer>
+
+        {/* Return Reason Modal */}
+        {returnEntryId && (
+          <div
+            style={styles.modalBackdrop}
+            onClick={(e) => {
+              // Close modal when clicking on backdrop (outside modal content)
+              if (e.target === e.currentTarget && !processing[returnEntryId]) {
+                setReturnEntryId(null);
+              }
+            }}
+          >
+            <div style={styles.modalContent}>
+              <h3 style={styles.modalTitle}>Return for Edits</h3>
+              <p style={styles.modalText}>
+                Tell the contributor what needs to change. This note is saved with the entry.
+              </p>
+              <textarea
+                value={returnReason}
+                onChange={(e) => setReturnReason(e.target.value)}
+                placeholder="e.g. Please add the Khmer title and a clearer photo."
+                style={styles.modalTextarea}
+                rows={4}
+                disabled={processing[returnEntryId]}
+              />
+              {returnError && (
+                <p style={styles.modalErrorText}>{returnError}</p>
+              )}
+              <div style={styles.modalButtons}>
+                <button
+                  type="button"
+                  onClick={() => setReturnEntryId(null)}
+                  style={styles.modalCancelButton}
+                  disabled={processing[returnEntryId]}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={handleReturnConfirm}
+                  style={styles.modalReturnButton}
+                  disabled={processing[returnEntryId]}
+                >
+                  {processing[returnEntryId] ? "Returning..." : "Return Entry"}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </main>
     </>
   );
@@ -301,6 +383,67 @@ const styles = {
   loginMessage: { fontSize: 16, color: "#1E3A8A", lineHeight: 1.6, margin: "0 0 16px" },
   buttonLink: { display: "inline-block", padding: "12px 20px", backgroundColor: "#1E40AF", color: "#FFFFFF", textDecoration: "none", borderRadius: 6, fontSize: 15, fontWeight: 600 },
   footer: { marginTop: 64, paddingTop: 24, borderTop: "1px solid #93C5FD", fontSize: 13, color: "#64748B" },
+  // Return reason modal
+  modalBackdrop: {
+    position: "fixed",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: "rgba(0, 0, 0, 0.5)",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    zIndex: 1000,
+  },
+  modalContent: {
+    backgroundColor: "#FFFFFF",
+    borderRadius: 12,
+    padding: 24,
+    maxWidth: 400,
+    width: "90%",
+    boxShadow: "0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)",
+    border: "1px solid #93C5FD",
+  },
+  modalTitle: { fontSize: 20, fontWeight: 600, color: "#1E3A8A", margin: "0 0 16px" },
+  modalText: { fontSize: 16, color: "#64748B", lineHeight: 1.6, margin: "0 0 16px" },
+  modalTextarea: {
+    width: "100%",
+    padding: "10px 12px",
+    border: "1px solid #93C5FD",
+    borderRadius: 6,
+    fontSize: 14,
+    color: "#1E3A8A",
+    fontFamily: "inherit",
+    lineHeight: 1.5,
+    resize: "vertical",
+    boxSizing: "border-box",
+    marginBottom: 16,
+  },
+  modalErrorText: { fontSize: 14, color: "#DC2626", fontWeight: 500, margin: "0 0 12px" },
+  modalButtons: { display: "flex", gap: 12, justifyContent: "flex-end" },
+  modalCancelButton: {
+    padding: "10px 20px",
+    backgroundColor: "#F8FAFC",
+    border: "1px solid #CBD5E1",
+    color: "#475569",
+    borderRadius: 6,
+    fontSize: 14,
+    fontWeight: 600,
+    cursor: "pointer",
+    flex: 1,
+  },
+  modalReturnButton: {
+    padding: "10px 20px",
+    backgroundColor: "#F59E0B",
+    border: "none",
+    color: "#FFFFFF",
+    borderRadius: 6,
+    fontSize: 14,
+    fontWeight: 600,
+    cursor: "pointer",
+    flex: 1,
+  },
 };
 
 function ReviewerQueuePage() {

@@ -5,7 +5,11 @@ import { useParams, useSearchParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import Header from "../../../components/header.js";
 import { createClient } from "../../../lib/supabase-client.js";
+import { isUserReviewer } from "../../../lib/reviewer-auth.js";
 import { useLanguage } from "../../../contexts/language-context.js";
+
+// Default note saved to the entry when a reviewer approves it.
+const APPROVAL_NOTE = "Thank you for sharing your story with us!";
 
 function EntryContent() {
   const { id } = useParams();
@@ -20,6 +24,12 @@ function EntryContent() {
   const [userLoading, setUserLoading] = useState(true);
   const [deleting, setDeleting] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  // Reviewer state
+  const [isReviewer, setIsReviewer] = useState(false);
+  const [reviewProcessing, setReviewProcessing] = useState(false);
+  const [isReturnModalOpen, setIsReturnModalOpen] = useState(false);
+  const [returnReason, setReturnReason] = useState("");
+  const [reviewError, setReviewError] = useState(null);
 
   // Read text for the active language, falling back to English.
   const getText = (fieldPrefix) => {
@@ -46,7 +56,14 @@ function EntryContent() {
       try {
         const supabase = createClient();
         const { data } = await supabase.auth.getUser();
-        if (active) setCurrentUser(data.user);
+        if (active) {
+          setCurrentUser(data.user);
+          // Check whether this user is a reviewer so we can show review actions.
+          if (data.user) {
+            const reviewerStatus = await isUserReviewer(supabase, data.user);
+            if (active) setIsReviewer(reviewerStatus);
+          }
+        }
       } catch (err) {
         console.error("Error fetching user:", err);
       } finally {
@@ -91,6 +108,7 @@ function EntryContent() {
   const STATUS_LABELS = {
     pending: { en: "Pending", km: "កំពុងរង់ចាំការពិនិត្យ" },
     published: { en: "Published", km: "ត្រូវបានចែករំលែក" },
+    returned: { en: "Returned", km: "ត្រូវតម្រូវឱ្យកែសម្រួលវិញ" },
   };
 
   const getStatusText = (status) => {
@@ -104,7 +122,7 @@ function EntryContent() {
       baseStyle.backgroundColor = '#DCFCE7';
       baseStyle.color = '#059669';
       baseStyle.border = '1px solid #86EFAC';
-    } else if (status === 'rejected') {
+    } else if (status === 'returned' || status === 'rejected') {
       baseStyle.backgroundColor = '#FEE2E2';
       baseStyle.color = '#DC2626';
       baseStyle.border = '1px solid #FCA5A5';
@@ -143,6 +161,55 @@ function EntryContent() {
   const handleEdit = () => {
     router.push(`/entry/${id}/edit${language && language !== "en" ? `?lang=${language}` : ""}`);
   };
+
+  // Call the review_entry RPC to approve or return this entry.
+  // The RPC signature is review_entry(entry_id, decision, note_text).
+  const submitReview = async (decision, noteText) => {
+    setReviewProcessing(true);
+    setReviewError(null);
+    try {
+      const supabase = createClient();
+      const { error: rpcError } = await supabase.rpc("review_entry", {
+        entry_id: id,
+        decision,
+        note_text: noteText || null,
+      });
+      if (rpcError) throw rpcError;
+
+      // Reflect the new status locally without a full reload.
+      setEntry((prev) => (prev ? { ...prev, status: decision, review_note: noteText || null } : prev));
+    } catch (err) {
+      console.error("Error reviewing entry:", err);
+      setReviewError("Failed to save the review. Please try again.");
+    } finally {
+      setReviewProcessing(false);
+    }
+  };
+
+  // Approve: publish the entry and attach a default thank-you note.
+  const handleApprove = () => submitReview("published", APPROVAL_NOTE);
+
+  // Return: open the reason modal so the reviewer can explain what to fix.
+  const handleReturnClick = () => {
+    setReturnReason("");
+    setReviewError(null);
+    setIsReturnModalOpen(true);
+  };
+
+  // Submit the return with the reviewer's feedback note.
+  const handleReturnConfirm = async () => {
+    const trimmedReason = returnReason.trim();
+    if (!trimmedReason) {
+      setReviewError("Please enter a reason so the contributor knows what to fix.");
+      return;
+    }
+    await submitReview("returned", trimmedReason);
+    setIsReturnModalOpen(false);
+    setReturnReason("");
+  };
+
+  // A reviewer can act only while the entry is still pending.
+  const canReview = !userLoading && isReviewer && entry?.status === "pending";
 
   return (
     <>
@@ -214,6 +281,39 @@ function EntryContent() {
               </div>
             )}
 
+            {/* Reviewer actions — shown only to reviewers while the entry is pending */}
+            {canReview && (
+              <div style={styles.reviewerCard}>
+                <div style={styles.actionsHeader}>
+                  <p style={styles.reviewerTitle}>Reviewer Actions</p>
+                  <p style={styles.actionsSubtitle}>
+                    Approve to publish this entry, or return it for edits.
+                  </p>
+                </div>
+                {reviewError && (
+                  <p style={styles.reviewErrorText}>{reviewError}</p>
+                )}
+                <div style={styles.actionsButtons}>
+                  <button
+                    type="button"
+                    onClick={handleApprove}
+                    style={styles.approveButton}
+                    disabled={reviewProcessing}
+                  >
+                    {reviewProcessing ? "Processing..." : "Approve"}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleReturnClick}
+                    style={styles.returnButton}
+                    disabled={reviewProcessing}
+                  >
+                    Return
+                  </button>
+                </div>
+              </div>
+            )}
+
             {photoSrc && (
               <div style={styles.imageWrapper}>
                 {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -227,6 +327,14 @@ function EntryContent() {
                 {getText("description") || "No description available."}
               </p>
             </div>
+
+            {/* Reviewer feedback note, visible to the owner and reviewers */}
+            {entry.review_note && entry.review_note.trim() && (
+              <div style={styles.reviewNoteBox}>
+                <div style={styles.reviewNoteLabel}>Reviewer Note</div>
+                <div style={styles.reviewNoteText}>{entry.review_note}</div>
+              </div>
+            )}
           </>
         )}
 
@@ -264,6 +372,55 @@ function EntryContent() {
                   style={styles.modalDeleteButton}
                 >
                   Delete
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Return Reason Modal */}
+        {isReturnModalOpen && (
+          <div
+            style={styles.modalBackdrop}
+            onClick={(e) => {
+              // Close modal when clicking on backdrop (outside modal content)
+              if (e.target === e.currentTarget && !reviewProcessing) {
+                setIsReturnModalOpen(false);
+              }
+            }}
+          >
+            <div style={styles.modalContent}>
+              <h3 style={styles.modalTitle}>Return for Edits</h3>
+              <p style={styles.modalText}>
+                Tell the contributor what needs to change. This note is saved with the entry.
+              </p>
+              <textarea
+                value={returnReason}
+                onChange={(e) => setReturnReason(e.target.value)}
+                placeholder="e.g. Please add the Khmer title and a clearer photo."
+                style={styles.modalTextarea}
+                rows={4}
+                disabled={reviewProcessing}
+              />
+              {reviewError && (
+                <p style={styles.reviewErrorText}>{reviewError}</p>
+              )}
+              <div style={styles.modalButtons}>
+                <button
+                  type="button"
+                  onClick={() => setIsReturnModalOpen(false)}
+                  style={styles.modalCancelButton}
+                  disabled={reviewProcessing}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={handleReturnConfirm}
+                  style={styles.modalReturnButton}
+                  disabled={reviewProcessing}
+                >
+                  {reviewProcessing ? "Returning..." : "Return Entry"}
                 </button>
               </div>
             </div>
@@ -525,6 +682,104 @@ const styles = {
   modalDeleteButton: {
     padding: "10px 20px",
     backgroundColor: "#DC2626",
+    border: "none",
+    color: "#FFFFFF",
+    borderRadius: 6,
+    fontSize: 14,
+    fontWeight: 600,
+    cursor: "pointer",
+    flex: 1,
+  },
+  // Reviewer action styles
+  reviewerCard: {
+    marginBottom: 24,
+    padding: 24,
+    backgroundColor: "#F0FDF4",
+    borderWidth: "1px",
+    borderStyle: "solid",
+    borderColor: "#86EFAC",
+    borderRadius: 10,
+    boxSizing: "border-box",
+  },
+  reviewerTitle: {
+    fontSize: 18,
+    fontWeight: 600,
+    color: "#15803D",
+    margin: "0 0 4px",
+  },
+  reviewErrorText: {
+    fontSize: 14,
+    color: "#DC2626",
+    fontWeight: 500,
+    margin: "0 0 12px",
+  },
+  approveButton: {
+    padding: "10px 20px",
+    backgroundColor: "#10B981",
+    color: "#FFFFFF",
+    border: "none",
+    borderRadius: 6,
+    fontSize: 14,
+    fontWeight: 600,
+    cursor: "pointer",
+    flex: 1,
+  },
+  returnButton: {
+    padding: "10px 20px",
+    backgroundColor: "#F59E0B",
+    color: "#FFFFFF",
+    border: "none",
+    borderRadius: 6,
+    fontSize: 14,
+    fontWeight: 600,
+    cursor: "pointer",
+    flex: 1,
+  },
+  // Reviewer feedback note display
+  reviewNoteBox: {
+    marginTop: 24,
+    padding: "12px 16px",
+    backgroundColor: "#FFFBEB",
+    borderWidth: "1px",
+    borderStyle: "solid",
+    borderColor: "#F59E0B",
+    borderRadius: 8,
+    fontSize: 14,
+    lineHeight: 1.5,
+  },
+  reviewNoteLabel: {
+    fontSize: 12,
+    fontWeight: 700,
+    color: "#92400E",
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
+    marginBottom: 6,
+  },
+  reviewNoteText: {
+    fontSize: 14,
+    color: "#78350F",
+    lineHeight: 1.5,
+    whiteSpace: "pre-wrap",
+  },
+  // Return reason modal
+  modalTextarea: {
+    width: "100%",
+    padding: "10px 12px",
+    borderWidth: "1px",
+    borderStyle: "solid",
+    borderColor: "#93C5FD",
+    borderRadius: 6,
+    fontSize: 14,
+    color: "#1E3A8A",
+    fontFamily: "inherit",
+    lineHeight: 1.5,
+    resize: "vertical",
+    boxSizing: "border-box",
+    marginBottom: 16,
+  },
+  modalReturnButton: {
+    padding: "10px 20px",
+    backgroundColor: "#F59E0B",
     border: "none",
     color: "#FFFFFF",
     borderRadius: 6,
