@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, Suspense } from "react";
+import { useState, useEffect, useMemo, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import Header from "../../components/header.js";
@@ -24,6 +24,9 @@ function ReviewerQueuePageContent() {
   const [returnEntryId, setReturnEntryId] = useState(null);
   const [returnReason, setReturnReason] = useState("");
   const [returnError, setReturnError] = useState(null);
+  // Chronological sort for the review backlog ("newest" | "oldest").
+  // Defaults to newest first, matching the order the query already returns.
+  const [sortOrder, setSortOrder] = useState("newest");
 
   const { language } = useLanguage();
 
@@ -31,6 +34,16 @@ function ReviewerQueuePageContent() {
     if (!entry) return "";
     return entry[`${field}_${language}`] || entry[`${field}_en`] || "";
   };
+
+  // Entries reordered by submission date. The array is copied before sorting so
+  // the fetched `entries` order is never mutated in place. Entries missing a
+  // created_at fall back to 0 so they sort to the end for "newest".
+  const sortedEntries = useMemo(() => {
+    const toTime = (entry) => new Date(entry.created_at).getTime() || 0;
+    return [...entries].sort((a, b) =>
+      sortOrder === "oldest" ? toTime(a) - toTime(b) : toTime(b) - toTime(a)
+    );
+  }, [entries, sortOrder]);
 
   const isAuthorizedReviewer = async () => {
     if (!user) return false;
@@ -208,6 +221,27 @@ function ReviewerQueuePageContent() {
           <p style={styles.count}>
             {loading ? "Loading..." : `${entries.length} pending ${entries.length === 1 ? 'entry' : 'entries'}`}
           </p>
+          {!loading && entries.length > 1 && (
+            <div style={styles.sortRow}>
+              <span style={styles.sortLabel}>
+                {language === "en" ? "Sort by date:" : "តម្រៀបតាមកាលបរិច្ឆេទ៖"}
+              </span>
+              <button
+                type="button"
+                onClick={() => setSortOrder("newest")}
+                style={sortOrder === "newest" ? styles.sortButtonActive : styles.sortButton}
+              >
+                {language === "en" ? "Newest First" : "ថ្មីបំផុតមុន"}
+              </button>
+              <button
+                type="button"
+                onClick={() => setSortOrder("oldest")}
+                style={sortOrder === "oldest" ? styles.sortButtonActive : styles.sortButton}
+              >
+                {language === "en" ? "Oldest First" : "ចាស់បំផុតមុន"}
+              </button>
+            </div>
+          )}
         </div>
         
         {error && (
@@ -230,7 +264,7 @@ function ReviewerQueuePageContent() {
         
         {!loading && entries.length > 0 && (
           <div style={styles.entriesList}>
-            {entries.map((entry) => (
+            {sortedEntries.map((entry) => (
               <div key={entry.id} style={styles.entryCard}>
                 <div style={styles.entryHeader}>
                   <h3 style={styles.entryTitle}>{getText(entry, 'title') || "Untitled"}</h3>
@@ -344,6 +378,10 @@ const styles = {
   infoBox: { marginTop: 24, padding: 20, backgroundColor: "#F0F9FF", border: "1px solid #BAE6FD", borderRadius: 8 },
   infoText: { fontSize: 14, color: "#0369A1", lineHeight: 1.5, margin: "0 0 12px" },
   count: { fontFamily: "'Courier New', monospace", fontSize: 14, color: "#3B82F6", fontWeight: 600, marginTop: 8 },
+  sortRow: { display: "flex", flexWrap: "wrap", alignItems: "center", gap: 10, marginTop: 12, paddingTop: 12, borderTop: "1px solid #BAE6FD" },
+  sortLabel: { fontSize: 14, color: "#0369A1", fontWeight: 600 },
+  sortButton: { padding: "8px 16px", backgroundColor: "#FFFFFF", color: "#1E40AF", border: "1px solid #93C5FD", borderRadius: 999, fontSize: 14, fontWeight: 600, cursor: "pointer", lineHeight: 1.5 },
+  sortButtonActive: { padding: "8px 16px", backgroundColor: "#1E40AF", color: "#FFFFFF", border: "1px solid #1E40AF", borderRadius: 999, fontSize: 14, fontWeight: 600, cursor: "pointer", lineHeight: 1.5 },
   entriesList: { display: "flex", flexDirection: "column", gap: 20, marginTop: 24 },
   entryCard: { backgroundColor: "#FFFFFF", border: "1px solid #93C5FD", borderRadius: 12, padding: 20 },
   entryHeader: { display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12, marginBottom: 16 },
