@@ -2,13 +2,25 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import { useRouter, usePathname } from "next/navigation";
+import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import { createClient } from "../lib/supabase-client.js";
 import { isUserReviewer } from "../lib/reviewer-auth.js";
+import { useLanguage } from "../contexts/language-context.js";
 
-export default function Header({ locale }) {
+function HeaderContent() {
   const router = useRouter();
   const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const { language, toggleLanguage } = useLanguage();
+  
+  // Sync URL language parameter with context on initial load
+  useEffect(() => {
+    const urlLang = searchParams.get("lang");
+    if (urlLang && (urlLang === "en" || urlLang === "km")) {
+      // If URL has a language param, ensure localStorage is synced
+      localStorage.setItem("preferredLanguage", urlLang);
+    }
+  }, [searchParams]);
 
   const [searchTerm, setSearchTerm] = useState("");
   const [user, setUser] = useState(null);
@@ -65,7 +77,7 @@ export default function Header({ locale }) {
 
     // Clean leading/trailing spaces and collapse multiple inner spaces
     const cleanQuery = searchTerm.trim().replace(/\s+/g, " ");
-    const lang = locale; // Use the locale prop instead of searchParams.get("lang")
+    const lang = language; // Use the active language from the context
 
     const params = new URLSearchParams();
     if (cleanQuery) params.set("q", cleanQuery);
@@ -75,12 +87,7 @@ export default function Header({ locale }) {
     router.push(queryString ? `/browse?${queryString}` : "/browse");
   };
 
-  const toggleLanguage = () => {
-    const nextLang = locale === "en" ? "km" : "en";
-    // Simple URL with just the language parameter
-    const queryString = `lang=${nextLang}`;
-    router.push(`${pathname}?${queryString}`);
-  };
+  
 
   // Handle logout
   const handleLogout = async () => {
@@ -95,7 +102,7 @@ export default function Header({ locale }) {
 
   // Preserves language parameter while clearing search query
   const getCleanPageUrl = (targetPath) => {
-    const lang = locale; // Use the locale prop instead of searchParams.get("lang")
+    const lang = language; // Use the active language from the context
     return lang ? `${targetPath}?lang=${lang}` : targetPath;
   };
 
@@ -121,7 +128,7 @@ export default function Header({ locale }) {
             </Link>
             {!loading && user && (
               <Link href={getCleanPageUrl("/my-entries")} style={styles.link}>
-                {locale === "km" ? "ការដាក់ស្នើរបស់ខ្ញុំ" : "My Entries"}
+                My Entries
               </Link>
             )}
             {!loading && user && isReviewer && (
@@ -165,7 +172,7 @@ export default function Header({ locale }) {
           </div>
 
           <button type="button" onClick={toggleLanguage} style={styles.langButton}>
-            {locale === "en" ? "🇰🇭 ភាសាខ្មែរ" : "🇬🇧 English"}
+            {language === "en" ? "🇰🇭 ភាសាខ្មែរ" : "🇬🇧 English"}
           </button>
         </div>
       </div>
@@ -316,3 +323,24 @@ const styles = {
     boxSizing: "border-box",
   },
 };
+
+import { Suspense } from "react";
+
+export default function Header() {
+  return (
+    <Suspense fallback={
+      <header style={styles.headerContainer}>
+        <div style={styles.headerInner}>
+          <div style={styles.brand}>KHMER ARCHIVE</div>
+          <div style={styles.rightGroup}>
+            <button type="button" style={styles.langButton}>
+              🇰🇭 ភាសាខ្មែរ
+            </button>
+          </div>
+        </div>
+      </header>
+    }>
+      <HeaderContent />
+    </Suspense>
+  );
+}

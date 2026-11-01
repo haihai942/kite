@@ -7,6 +7,7 @@ import Header from "../../components/header.js";
 import { createClient } from "../../lib/supabase-client.js";
 import collection from "../../collection.config.js";
 import EntryCard from "../../components/entryCard.js";
+import { useLanguage } from "../../contexts/language-context.js";
 
 function BrowseContent() {
   const searchParams = useSearchParams();
@@ -15,12 +16,12 @@ function BrowseContent() {
   const [error, setError] = useState(null);
 
   const query = searchParams.get("q") || "";
-  const locale = searchParams.get("lang") || "en";
+  const { language } = useLanguage();
 
-  // Helper function to get text based on locale for flat structure
+  // Helper function to get text for the active language for flat structure
   const getText = (entry, fieldPrefix) => {
     if (!entry) return "";
-    const field = entry[`${fieldPrefix}_${locale}`] || entry[`${fieldPrefix}_en`];
+    const field = entry[`${fieldPrefix}_${language}`] || entry[`${fieldPrefix}_en`];
     return field || "";
   };
 
@@ -113,22 +114,21 @@ function BrowseContent() {
 
   return (
     <>
-      <Header locale={locale} />
+      <Header />
 
       <main style={styles.wrap}>
         <div style={styles.header}>
           <p style={styles.kicker}>KHMER LIVING ARCHIVE</p>
-          <h1 style={styles.title}>{collection.name?.en || collection.name}</h1>
+          <h1 style={styles.title}>{language === "en" ? "Browse" : "ការរុករក"}</h1>
 
           <p style={styles.description}>
             {!query ? (
-              "Showing all entries in the archive"
+              language === "en" ? "Showing all entries in the archive" : "បង្ហាញធាតុទាំងអស់នៅក្នុងប័ណ្ណសារ"
             ) : hasMatches ? (
-              `Showing results for "${query}"`
+              language === "en" ? `Showing results for "${query}"` : `បង្ហាញលទ្ធផលសម្រាប់ "${query}"`
             ) : (
               <span>
-                No exact results found for <strong>"{query}"</strong>. 
-                {entries.length > 0 ? " Here are some entries from our collection:" : " The archive is currently empty."}
+                {language === "en" ? `No exact results found for "${query}". ${entries.length > 0 ? "Here are some entries from our collection:" : "The archive is currently empty."}` : `គ្មានលទ្ធផលពិតប្រាកដសម្រាប់ "${query}" ។ ${entries.length > 0 ? "នេះគឺជាធាតុមួយចំនួនពីការប្រមូលផ្តុំរបស់យើង៖" : "ប័ណ្ណសារបច្ចុប្បន្នទទេ។"}`}
               </span>
             )}
           </p>
@@ -136,7 +136,7 @@ function BrowseContent() {
 
         {loading ? (
           <div style={styles.loadingContainer}>
-            <p style={styles.loadingText}>Loading archive...</p>
+            <p style={styles.loadingText}>{language === "en" ? "Loading archive..." : "កំពុងផ្ទុកប័ណ្ណសារ..."}</p>
           </div>
         ) : error ? (
           <div style={styles.errorContainer}>
@@ -156,7 +156,7 @@ function BrowseContent() {
               return (
                 <Link
                   key={entry.id || index}
-                  href={`/entry/${entry.id}?lang=${locale}`}
+                  href={`/entry/${entry.id}?lang=${language}`}
                   style={{ textDecoration: 'none', color: 'inherit' }}
                 >
                   <EntryCard

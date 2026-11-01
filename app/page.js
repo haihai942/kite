@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import Header from "../components/header.js";
 import collection from "../collection.config.js";
 import { createClient } from "../lib/supabase-client.js";
+import { useLanguage } from "../contexts/language-context.js";
 
 function HomeContent() {
   const router = useRouter();
@@ -14,12 +15,12 @@ function HomeContent() {
   const [error, setError] = useState(null);
 
   // Always read active language directly from URL search params
-  const locale = searchParams.get("lang") || "en";
+  const { language } = useLanguage();
 
-  // Helper function to get text based on locale for flat structure
+  // Helper function to get text for the active language for flat structure
   const getEntryText = (entry, fieldPrefix) => {
     if (!entry) return "";
-    const field = entry[`${fieldPrefix}_${locale}`] || entry[`${fieldPrefix}_en`];
+    const field = entry[`${fieldPrefix}_${language}`] || entry[`${fieldPrefix}_en`];
     return field || "";
   };
 
@@ -48,7 +49,7 @@ function HomeContent() {
         setEntries(data || []);
         setError(null);
       } catch (err) {
-        console.error('Error fetching entries:', err);
+        console.error('Error fetching entries:', err?.message || JSON.stringify(err));
         setError('Failed to load entries. Please try again later.');
         setEntries([]);
       } finally {
@@ -62,37 +63,37 @@ function HomeContent() {
   // Navigates to Entry detail page with language 'lang' parameter
   const goToDetail = (entryId) => {
     const params = new URLSearchParams();
-    params.set("lang", locale);
+    params.set("lang", language);
     router.push(`/entry/${entryId}?${params.toString()}`);
   };
 
   return (
     <>
-      <Header locale={locale} />
+      <Header />
 
       <main style={styles.wrap}>
         <p style={styles.kicker}>KHMER LIVING ARCHIVE</p>
-        <h1 style={styles.title}>{collection.name?.en || collection.name}</h1>
+        <h1 style={styles.title}>{language === "en" ? collection.name : "ខ្លែង"}</h1>
         <p style={styles.description}>
-          {collection.description?.en || collection.description}
+          {collection.description}
         </p>
 
         <div style={styles.card}>
           <p style={styles.cardLabel}>CURATED BY</p>
           <p style={styles.cardValue}>
-            {collection.curator?.en || collection.curator}
+            {collection.curator}
           </p>
         </div>
         <div style={styles.card}>
           <p style={styles.cardLabel}>SOURCE</p>
           <p style={styles.cardValue}>
-            {collection.source?.en || collection.source}
+            {collection.source}
           </p>
         </div>
 
         {loading ? (
           <div style={styles.loadingContainer}>
-            <p style={styles.loadingText}>Loading archive entries...</p>
+            <p style={styles.loadingText}>{language === "en" ? "Loading archive entries..." : "កំពុងផ្ទុកធាតុប័ណ្ណសារ..."}</p>
           </div>
         ) : error ? (
           <div style={styles.errorContainer}>
@@ -100,11 +101,11 @@ function HomeContent() {
           </div>
         ) : (
           <>
-            <p style={styles.count}>entries in the archive: {entries.length}</p>
+            <p style={styles.count}>{language === "en" ? "entries in the archive: " : "ធាតុនៅក្នុងប័ណ្ណសារ៖ "}{entries.length}</p>
 
             {entries.length === 0 ? (
               <div style={styles.emptyContainer}>
-                <p style={styles.emptyText}>No entries found in the archive.</p>
+                <p style={styles.emptyText}>{language === "en" ? "No entries found in the archive." : "គ្មានធាតុណាមួយត្រូវបានរកឃើញនៅក្នុងប័ណ្ណសារ។"}</p>
               </div>
             ) : (
               entries.map((entry, index) => {

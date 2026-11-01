@@ -5,11 +5,12 @@ import { useParams, useSearchParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import Header from "../../../components/header.js";
 import { createClient } from "../../../lib/supabase-client.js";
+import { useLanguage } from "../../../contexts/language-context.js";
 
 function EntryContent() {
   const { id } = useParams();
   const searchParams = useSearchParams();
-  const locale = searchParams.get("lang") || "en";
+  const { language } = useLanguage();
   const router = useRouter();
 
   const [entry, setEntry] = useState(null);
@@ -20,10 +21,10 @@ function EntryContent() {
   const [deleting, setDeleting] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
 
-  // Read text for the active locale, falling back to English.
+  // Read text for the active language, falling back to English.
   const getText = (fieldPrefix) => {
     if (!entry) return "";
-    return entry[`${fieldPrefix}_${locale}`] || entry[`${fieldPrefix}_en`] || "";
+    return entry[`${fieldPrefix}_${language}`] || entry[`${fieldPrefix}_en`] || "";
   };
 
   // Build an image src: submitted entries store a public storage URL,
@@ -94,7 +95,7 @@ function EntryContent() {
 
   const getStatusText = (status) => {
     const label = STATUS_LABELS[status] || STATUS_LABELS.pending;
-    return label[locale] || label.en;
+    return label[language] || label.en;
   };
 
   const getStatusBadgeStyle = (status) => {
@@ -140,12 +141,12 @@ function EntryContent() {
 
   // Handle edit navigation
   const handleEdit = () => {
-    router.push(`/entry/${id}/edit${locale && locale !== "en" ? `?lang=${locale}` : ""}`);
+    router.push(`/entry/${id}/edit${language && language !== "en" ? `?lang=${language}` : ""}`);
   };
 
   return (
     <>
-      <Header locale={locale} />
+      <Header />
       <main style={styles.wrap}>
         <div style={styles.header}>
           <p style={styles.kicker}>KHMER LIVING ARCHIVE</p>

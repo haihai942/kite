@@ -6,6 +6,7 @@ import Link from "next/link";
 import Header from "../../components/header.js";
 import { createClient } from "../../lib/supabase-client.js";
 import { isUserReviewer } from "../../lib/reviewer-auth.js";
+import { useLanguage } from "../../contexts/language-context.js";
 
 function ReviewerQueuePageContent() {
   const searchParams = useSearchParams();
@@ -17,11 +18,11 @@ function ReviewerQueuePageContent() {
   const [processing, setProcessing] = useState({});
   const [isReviewer, setIsReviewer] = useState(false);
 
-  const locale = searchParams.get("lang") || "en";
+  const { language } = useLanguage();
 
   const getText = (entry, field) => {
     if (!entry) return "";
-    return entry[`${field}_${locale}`] || entry[`${field}_en`] || "";
+    return entry[`${field}_${language}`] || entry[`${field}_en`] || "";
   };
 
   const isAuthorizedReviewer = async () => {
@@ -114,7 +115,7 @@ function ReviewerQueuePageContent() {
   if (authLoading) {
     return (
       <>
-        <Header locale={locale} />
+        <Header />
         <main style={styles.wrap}>
           <div style={styles.loadingContainer}>
             <p style={styles.loadingText}>Loading...</p>
@@ -127,13 +128,13 @@ function ReviewerQueuePageContent() {
   if (!user) {
     return (
       <>
-        <Header locale={locale} />
+        <Header />
         <main style={styles.wrap}>
           <p style={styles.kicker}>REVIEWER QUEUE</p>
-          <h1 style={styles.title}>Reviewer Queue / ជួររង់ចាំការពិនិត្យ</h1>
+          <h1 style={styles.title}>{language === "en" ? "Reviewer Queue" : "ជួររង់ចាំការពិនិត្យ"}</h1>
           <div style={styles.card}>
             <p style={styles.loginMessage}>Please log in to access the reviewer queue</p>
-            <Link href={`/login?lang=${locale}`} style={styles.buttonLink}>
+            <Link href={`/login?lang=${language}`} style={styles.buttonLink}>
               Log In
             </Link>
           </div>
@@ -145,13 +146,13 @@ function ReviewerQueuePageContent() {
   if (!isReviewer) {
     return (
       <>
-        <Header locale={locale} />
+        <Header />
         <main style={styles.wrap}>
           <p style={styles.kicker}>REVIEWER QUEUE</p>
-          <h1 style={styles.title}>Reviewer Queue / ជួររង់ចាំការពិនិត្យ</h1>
+          <h1 style={styles.title}>{language === "en" ? "Reviewer Queue" : "ជួររង់ចាំការពិនិត្យ"}</h1>
           <div style={styles.card}>
             <p style={styles.errorText}>You do not have reviewer permissions.</p>
-            <Link href={`/?lang=${locale}`} style={styles.buttonLink}>
+            <Link href={`/?lang=${language}`} style={styles.buttonLink}>
               Return Home
             </Link>
           </div>
@@ -162,10 +163,10 @@ function ReviewerQueuePageContent() {
 
   return (
     <>
-      <Header locale={locale} />
+      <Header />
       <main style={styles.wrap}>
         <p style={styles.kicker}>REVIEWER QUEUE</p>
-        <h1 style={styles.title}>Reviewer Queue / ជួររង់ចាំការពិនិត្យ</h1>
+        <h1 style={styles.title}>{language === "en" ? "Reviewer Queue" : "ជួររង់ចាំការពិនិត្យ"}</h1>
         
         <div style={styles.infoBox}>
           <p style={styles.infoText}>
@@ -220,7 +221,7 @@ function ReviewerQueuePageContent() {
                 </div>
                 
                 <div style={styles.entryActions}>
-                  <Link href={`/entry/${entry.id}?lang=${locale}`} style={styles.viewButton}>
+                  <Link href={`/entry/${entry.id}?lang=${language}`} style={styles.viewButton}>
                     View Entry
                   </Link>
                   
@@ -306,7 +307,7 @@ function ReviewerQueuePage() {
   return (
     <Suspense fallback={
       <>
-        <Header locale="en" />
+        <Header />
         <main style={{ maxWidth: 720, margin: "0 auto", padding: "40px 24px 80px" }}>
           <div style={{ textAlign: "center", padding: "40px 0", marginTop: 32 }}>
             <p style={{ fontSize: 16, color: "#64748B", fontStyle: "italic" }}>Loading reviewer queue...</p>

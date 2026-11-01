@@ -5,6 +5,7 @@ import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import Header from "../../components/header.js";
 import { createClient } from "../../lib/supabase-client.js";
+import { useLanguage } from "../../contexts/language-context.js";
 
 const STATUS_LABELS = {
   pending: { en: "Pending", km: "កំពុងរង់ចាំការពិនិត្យ" },
@@ -73,11 +74,11 @@ function MyEntriesContent() {
   const [user, setUser] = useState(null);
   const [authLoading, setAuthLoading] = useState(true);
 
-  const locale = searchParams.get("lang") || "en";
+  const { language } = useLanguage();
 
   const getText = (entry, field) => {
     if (!entry) return "";
-    return entry[`${field}_${locale}`] || entry[`${field}_en`] || "";
+    return entry[`${field}_${language}`] || entry[`${field}_en`] || "";
   };
 
   useEffect(() => {
@@ -122,7 +123,7 @@ function MyEntriesContent() {
 
   const getStatusText = (status) => {
     const label = STATUS_LABELS[status] || STATUS_LABELS.pending;
-    return label[locale] || label.en;
+    return label[language] || label.en;
   };
 
   const getStatusBadgeStyle = (status) => {
@@ -143,7 +144,7 @@ function MyEntriesContent() {
   if (authLoading) {
     return (
       <>
-        <Header locale="en" />
+        <Header />
         <main style={styles.wrap}>
           <div style={styles.loadingContainer}>
             <p style={styles.loadingText}>Loading...</p>
@@ -156,10 +157,10 @@ function MyEntriesContent() {
   if (!user) {
     return (
       <>
-        <Header locale="en" />
+        <Header />
         <main style={styles.wrap}>
           <p style={styles.kicker}>MY ENTRIES</p>
-          <h1 style={styles.title}>My Entries / ការដាក់ស្នើរបស់ខ្ញុំ</h1>
+          <h1 style={styles.title}>{language === "en" ? "My Entries" : "ការដាក់ស្នើរបស់ខ្ញុំ"}</h1>
           <div style={styles.card}>
             <p style={styles.loginMessage}>Please log in to view your entries</p>
             <Link href="/login" style={styles.buttonLink}>Log in</Link>
@@ -174,10 +175,10 @@ function MyEntriesContent() {
 
   return (
     <>
-      <Header locale={locale} />
+      <Header />
       <main style={styles.wrap}>
         <p style={styles.kicker}>MY ENTRIES</p>
-        <h1 style={styles.title}>My Entries / ការដាក់ស្នើរបស់ខ្ញុំ</h1>
+        <h1 style={styles.title}>{language === "en" ? "My Entries" : "ការដាក់ស្នើរបស់ខ្ញុំ"}</h1>
 
         {loading ? (
           <div style={styles.loadingContainer}><p style={styles.loadingText}>Loading your entries...</p></div>
@@ -212,10 +213,10 @@ function MyEntriesContent() {
                     </div>
                   )}
                   <div style={styles.entryActions}>
-                    <Link href={`/entry/${entry.id}?lang=${locale}`} style={styles.viewButton}>
+                    <Link href={`/entry/${entry.id}?lang=${language}`} style={styles.viewButton}>
                       View Entry
                     </Link>
-                    <Link href={`/entry/${entry.id}/edit?lang=${locale}`} style={styles.editButton}>
+                    <Link href={`/entry/${entry.id}/edit?lang=${language}`} style={styles.editButton}>
                       Edit
                     </Link>
                   </div>

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, Suspense } from "react";
-import { useParams, useSearchParams, useRouter } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import Header from "../../../../components/header.js";
 import { createClient } from "../../../../lib/supabase-client.js";
@@ -10,6 +10,7 @@ import {
   prepareFileForUpload
 } from "../../../../lib/file-validation.js";
 import { isUserReviewer } from "../../../../lib/reviewer-auth.js";
+import { useLanguage } from "../../../../contexts/language-context.js";
 
 // Max character counts (measured after trimming) for each text field.
 const MAX_LENGTHS = {
@@ -160,8 +161,7 @@ function validate(values, photo, removeCurrentPhoto = false, existingPhotoUrl = 
 
 function EditContent() {
   const { id } = useParams();
-  const searchParams = useSearchParams();
-  const locale = searchParams.get("lang") || "en";
+  const { language } = useLanguage();
   const router = useRouter();
 
   const [supabase] = useState(() => createClient());
@@ -424,7 +424,7 @@ function EditContent() {
       }
       
       // Redirect back to the entry page
-      router.push(`/entry/${id}${locale && locale !== "en" ? `?lang=${locale}` : ""}`);
+      router.push(`/entry/${id}${language && language !== "en" ? `?lang=${language}` : ""}`);
     } catch (err) {
       console.error("Error updating entry:", err);
       setSubmitError(err.message || "Failed to update entry. Please try again.");
@@ -433,7 +433,7 @@ function EditContent() {
   };
 
   const handleCancel = () => {
-    router.push(`/entry/${id}${locale && locale !== "en" ? `?lang=${locale}` : ""}`);
+    router.push(`/entry/${id}${language && language !== "en" ? `?lang=${language}` : ""}`);
   };
 
   const handlePhotoRemoveConfirm = () => {
@@ -449,7 +449,7 @@ function EditContent() {
   if (authLoading || loading) {
     return (
       <>
-        <Header locale={locale} />
+        <Header />
         <main style={styles.wrap}>
           <div style={styles.card}>
             <p style={styles.loadingText}>Loading...</p>
@@ -462,7 +462,7 @@ function EditContent() {
   if (error) {
     return (
       <>
-        <Header locale={locale} />
+        <Header />
         <main style={styles.wrap}>
           <div style={styles.header}>
             <p style={styles.kicker}>KHMER LIVING ARCHIVE</p>
@@ -484,7 +484,7 @@ function EditContent() {
 
   return (
     <>
-      <Header locale={locale} />
+      <Header />
       <main style={styles.wrap}>
         <div style={styles.header}>
           <p style={styles.kicker}>KHMER LIVING ARCHIVE</p>

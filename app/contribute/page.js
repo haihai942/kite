@@ -5,12 +5,13 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import Header from "../../components/header.js";
 import { createClient } from "../../lib/supabase-client.js";
-import { 
-  MAX_FILE_SIZE, 
+import {
+  MAX_FILE_SIZE,
   validatePhotoFile,
   prepareFileForUpload,
-  extractSafeExtension 
+  extractSafeExtension
 } from "../../lib/file-validation.js";
+import { useLanguage } from "../../contexts/language-context.js";
 
 // Max character counts (measured after trimming) for each text field.
 const MAX_LENGTHS = {
@@ -25,15 +26,22 @@ const MAX_LENGTHS = {
 };
 
 const FIELD_LABELS = {
-  title_en: "Title (English)",
-  title_km: "Title (Khmer)",
-  contributor_en: "Contributor Name (English)",
-  contributor_km: "Contributor Name (Khmer)",
-  places_en: "Place (English)",
-  places_km: "Place (Khmer)",
-  description_en: "Description (English)",
-  description_km: "Description (Khmer)",
+  title_en: { en: "Title (English)", km: "ចំណងជើង (អង់គ្លេស)" },
+  title_km: { en: "Title (Khmer)", km: "ចំណងជើង (ខ្មែរ)" },
+  contributor_en: { en: "Contributor Name (English)", km: "ឈ្មោះអ្នកចូលរួម (អង់គ្លេស)" },
+  contributor_km: { en: "Contributor Name (Khmer)", km: "ឈ្មោះអ្នកចូលរួម (ខ្មែរ)" },
+  places_en: { en: "Place (English)", km: "ទីកន្លែង (អង់គ្លេស)" },
+  places_km: { en: "Place (Khmer)", km: "ទីកន្លែង (ខ្មែរ)" },
+  description_en: { en: "Description (English)", km: "ការពិពណ៌នា (អង់គ្លេស)" },
+  description_km: { en: "Description (Khmer)", km: "ការពិពណ៌នា (ខ្មែរ)" },
 };
+
+// Returns the field label for the active language.
+function fieldLabel(field, language) {
+  const labels = FIELD_LABELS[field];
+  if (!labels) return field;
+  return labels[language] || labels.en;
+}
 
 // MAX_FILE_SIZE is imported from file-validation.js (5 MB)
 // Photo types are now validated in the file-validation module
@@ -69,23 +77,34 @@ function makePhotoId() {
   return `photo-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
 }
 
-function validate(values, photo) {
+function validate(values, photo, language = "en") {
   const errors = {};
+  const en = language === "en";
 
   // Title (English): required, max 30 chars, not blank spaces or symbols only.
   if (!values.title_en) {
-    errors.title_en = "Title (English) is required.";
+    errors.title_en = en
+      ? "Title (English) is required."
+      : "តម្រូវឱ្យបំពេញចំណងជើង (អង់គ្លេស)។";
   } else if (charCount(values.title_en) > MAX_LENGTHS.title_en) {
-    errors.title_en = `Title (English) must be ${MAX_LENGTHS.title_en} characters or fewer (currently ${charCount(values.title_en)}).`;
+    errors.title_en = en
+      ? `Title (English) must be ${MAX_LENGTHS.title_en} characters or fewer (currently ${charCount(values.title_en)}).`
+      : `ចំណងជើង (អង់គ្លេស) ត្រូវតែមាន ${MAX_LENGTHS.title_en} តួអក្សរ ឬតិចជាង (បច្ចុប្បន្ន ${charCount(values.title_en)})។`;
   } else if (!/[\p{L}\p{N}]/u.test(values.title_en)) {
-    errors.title_en = "Title (English) cannot be only spaces or symbols.";
+    errors.title_en = en
+      ? "Title (English) cannot be only spaces or symbols."
+      : "ចំណងជើង (អង់គ្លេស) មិនអាចជាចន្លោះទទេ ឬនិមិត្តសញ្ញាតែប៉ុណ្ណោះបានទេ។";
   }
 
   // Description (English): required, max 1800 chars, cannot be blank spaces.
   if (!values.description_en) {
-    errors.description_en = "Description (English) is required.";
+    errors.description_en = en
+      ? "Description (English) is required."
+      : "តម្រូវឱ្យបំពេញការពិពណ៌នា (អង់គ្លេស)។";
   } else if (charCount(values.description_en) > MAX_LENGTHS.description_en) {
-    errors.description_en = `Description (English) must be ${MAX_LENGTHS.description_en} characters or fewer (currently ${charCount(values.description_en)}).`;
+    errors.description_en = en
+      ? `Description (English) must be ${MAX_LENGTHS.description_en} characters or fewer (currently ${charCount(values.description_en)}).`
+      : `ការពិពណ៌នា (អង់គ្លេស) ត្រូវតែមាន ${MAX_LENGTHS.description_en} តួអក្សរ ឬតិចជាង (បច្ចុប្បន្ន ${charCount(values.description_en)})។`;
   }
 
   // Optional text fields: length checks only.
@@ -99,13 +118,16 @@ function validate(values, photo) {
   ];
   optionalFields.forEach((field) => {
     if (values[field] && charCount(values[field]) > MAX_LENGTHS[field]) {
-      errors[field] = `${FIELD_LABELS[field]} must be ${MAX_LENGTHS[field]} characters or fewer (currently ${charCount(values[field])}).`;
+      const label = fieldLabel(field, language);
+      errors[field] = en
+        ? `${label} must be ${MAX_LENGTHS[field]} characters or fewer (currently ${charCount(values[field])}).`
+        : `${label} ត្រូវតែមាន ${MAX_LENGTHS[field]} តួអក្សរ ឬតិចជាង (បច្ចុប្បន្ន ${charCount(values[field])})។`;
     }
   });
 
   // Photo: required, strict validation using file-validation.js
   if (!photo) {
-    errors.photo = "Please choose a photo.";
+    errors.photo = en ? "Please choose a photo." : "សូមជ្រើសរើសរូបថតមួយ។";
   } else {
     const validation = validatePhotoFile(photo);
     if (!validation.isValid) {
@@ -118,6 +140,7 @@ function validate(values, photo) {
 
 function ContributeContent() {
   const router = useRouter();
+  const { language } = useLanguage();
   const [supabase] = useState(() => createClient());
   const [user, setUser] = useState(null);
   const [authLoading, setAuthLoading] = useState(true);
@@ -155,7 +178,7 @@ function ContributeContent() {
   };
 
   const handleBlur = (field) => () => {
-    const nextErrors = validate(trimValues(values), photo);
+    const nextErrors = validate(trimValues(values), photo, language);
     setErrors((prev) => ({ ...prev, [field]: nextErrors[field] || "" }));
   };
 
@@ -163,7 +186,7 @@ function ContributeContent() {
     const file = e.target.files && e.target.files[0];
     setPhoto(file || null);
     if (errors.photo) {
-      const nextErrors = validate(trimValues(values), file || null);
+      const nextErrors = validate(trimValues(values), file || null, language);
       setErrors((prev) => ({ ...prev, photo: nextErrors.photo || "" }));
     }
   };
@@ -173,7 +196,7 @@ function ContributeContent() {
     setSubmitError("");
 
     const trimmed = trimValues(values);
-    const nextErrors = validate(trimmed, photo);
+    const nextErrors = validate(trimmed, photo, language);
     setErrors(nextErrors);
     if (Object.values(nextErrors).some(Boolean)) return;
 
@@ -188,7 +211,9 @@ function ContributeContent() {
       if (userError) throw userError;
       if (!currentUser) {
         setSubmitError(
-          "Your session has expired. Please log in again and try again."
+          language === "en"
+            ? "Your session has expired. Please log in again and try again."
+            : "វគ្គសម្រាប់អ្នកបានផុតកំណត់។ សូមចូលម្តងទៀត ហើយព្យាយាមម្តងទៀត។"
         );
         return;
       }
@@ -242,7 +267,9 @@ function ContributeContent() {
       // Log the real error, but only ever show a friendly generic message.
       console.error("Error submitting entry:", err);
       setSubmitError(
-        "We couldn't save your entry right now. Please try again."
+        language === "en"
+          ? "We couldn't save your entry right now. Please try again."
+          : "យើងមិនអាចរក្សាទុកធាតុរបស់អ្នកបានទេនៅពេលនេះ។ សូមព្យាយាមម្តងទៀត។"
       );
     } finally {
       setSubmitting(false);
@@ -251,32 +278,40 @@ function ContributeContent() {
 
   return (
     <>
-      <Header locale="en" />
+      <Header />
       <main style={styles.wrap}>
         <div style={styles.header}>
           <p style={styles.kicker}>KHMER LIVING ARCHIVE</p>
-          <h1 style={styles.title}>Contribute an Entry</h1>
+          <h1 style={styles.title}>
+            {language === "en" ? "Contribute an Entry" : "ចូលរួមចំណែកធាតុមួយ"}
+          </h1>
           <p style={styles.description}>
-            Share a kite memory, tradition, or photo with the archive.
+            {language === "en"
+              ? "Share a kite memory, tradition, or photo with the archive."
+              : "ចែករំលែកអនុស្សាវរីយ៍ ប្រពៃណី ឬរូបថតខ្លែងជាមួយប័ណ្ណសារ។"}
           </p>
         </div>
 
         {authLoading ? (
           <div style={styles.card}>
-            <p style={styles.loadingText}>Checking your account...</p>
+            <p style={styles.loadingText}>
+              {language === "en" ? "Checking your account..." : "កំពុងពិនិត្យគណនីរបស់អ្នក..."}
+            </p>
           </div>
         ) : !user ? (
           <div style={styles.card}>
             <p style={styles.loginMessage}>
-              Please log in to submit an entry
+              {language === "en"
+                ? "Please log in to submit an entry"
+                : "សូមចូលដើម្បីដាក់ស្នើធាតុមួយ"}
             </p>
             <Link href="/login" style={styles.buttonLink}>
-              Log in
+              {language === "en" ? "Log in" : "ចូល"}
             </Link>
             <p style={styles.helperText}>
-              New here?{" "}
+              {language === "en" ? "New here?" : "ថ្មីនៅទីនេះ?"}{" "}
               <Link href="/signup" style={styles.link}>
-                Create an account
+                {language === "en" ? "Create an account" : "បង្កើតគណនី"}
               </Link>
             </p>
           </div>
@@ -284,13 +319,12 @@ function ContributeContent() {
           <div style={styles.card}>
             <div style={styles.successContainer}>
               <p style={styles.successText}>
-                Your entry has been submitted and is waiting for review.
-              </p>
-              <p style={styles.successText}>
-                ការដាក់ស្នើរបស់អ្នកត្រូវបានទទួល និងកំពុងរង់ចាំការពិនិត្យ។
+                {language === "en"
+                  ? "Your entry has been submitted and is waiting for review."
+                  : "ការដាក់ស្នើរបស់អ្នកត្រូវបានទទួល និងកំពុងរង់ចាំការពិនិត្យ។"}
               </p>
               <Link href="/my-entries" style={styles.buttonLink}>
-                View My Entries
+                {language === "en" ? "View My Entries" : "មើលធាតុរបស់ខ្ញុំ"}
               </Link>
             </div>
           </div>
@@ -303,7 +337,7 @@ function ContributeContent() {
 
               <div style={styles.field}>
                 <label htmlFor="title_en" style={styles.label}>
-                  {FIELD_LABELS.title_en}{" "}
+                  {fieldLabel("title_en", language)}{" "}
                   <span style={styles.required}>*</span>
                 </label>
                 <input
@@ -312,7 +346,7 @@ function ContributeContent() {
                   value={values.title_en}
                   onChange={handleTextChange("title_en")}
                   onBlur={handleBlur("title_en")}
-                  placeholder="e.g. My First Bamboo Kite"
+                  placeholder={language === "en" ? "e.g. My First Bamboo Kite" : "ឧ. ខ្លែងឫស្សីដំបូងរបស់ខ្ញុំ"}
                   style={styles.input}
                 />
                 {errors.title_en ? (
@@ -320,14 +354,14 @@ function ContributeContent() {
                 ) : (
                   <span style={styles.counter}>
                     {charCount(values.title_en)}/{MAX_LENGTHS.title_en}{" "}
-                    characters
+                    {language === "en" ? "characters" : "តួអក្សរ"}
                   </span>
                 )}
               </div>
 
               <div style={styles.field}>
                 <label htmlFor="title_km" style={styles.label}>
-                  {FIELD_LABELS.title_km}
+                  {fieldLabel("title_km", language)}
                 </label>
                 <input
                   id="title_km"
@@ -335,7 +369,7 @@ function ContributeContent() {
                   value={values.title_km}
                   onChange={handleTextChange("title_km")}
                   onBlur={handleBlur("title_km")}
-                  placeholder="e.g. ខ្លែងឫស្សីដំបូងរបស់ខ្ញុំ"
+                  placeholder={language === "en" ? "e.g. My First Bamboo Kite" : "ឧ. ខ្លែងឫស្សីដំបូងរបស់ខ្ញុំ"}
                   style={styles.input}
                 />
                 {errors.title_km ? (
@@ -343,14 +377,14 @@ function ContributeContent() {
                 ) : (
                   <span style={styles.counter}>
                     {charCount(values.title_km)}/{MAX_LENGTHS.title_km}{" "}
-                    characters
+                    {language === "en" ? "characters" : "តួអក្សរ"}
                   </span>
                 )}
               </div>
 
               <div style={styles.field}>
                 <label htmlFor="contributor_en" style={styles.label}>
-                  {FIELD_LABELS.contributor_en}
+                  {fieldLabel("contributor_en", language)}
                 </label>
                 <input
                   id="contributor_en"
@@ -358,7 +392,7 @@ function ContributeContent() {
                   value={values.contributor_en}
                   onChange={handleTextChange("contributor_en")}
                   onBlur={handleBlur("contributor_en")}
-                  placeholder="e.g. My Grandma"
+                  placeholder={language === "en" ? "e.g. My Grandma" : "ឧ. យាយរបស់ខ្ញុំ"}
                   style={styles.input}
                 />
                 {errors.contributor_en ? (
@@ -366,14 +400,14 @@ function ContributeContent() {
                 ) : (
                   <span style={styles.counter}>
                     {charCount(values.contributor_en)}/
-                    {MAX_LENGTHS.contributor_en} characters
+                    {MAX_LENGTHS.contributor_en} {language === "en" ? "characters" : "តួអក្សរ"}
                   </span>
                 )}
               </div>
 
               <div style={styles.field}>
                 <label htmlFor="contributor_km" style={styles.label}>
-                  {FIELD_LABELS.contributor_km}
+                  {fieldLabel("contributor_km", language)}
                 </label>
                 <input
                   id="contributor_km"
@@ -381,7 +415,7 @@ function ContributeContent() {
                   value={values.contributor_km}
                   onChange={handleTextChange("contributor_km")}
                   onBlur={handleBlur("contributor_km")}
-                  placeholder="e.g. យាយរបស់ខ្ញុំ"
+                  placeholder={language === "en" ? "e.g. My Grandma" : "ឧ. យាយរបស់ខ្ញុំ"}
                   style={styles.input}
                 />
                 {errors.contributor_km ? (
@@ -389,14 +423,14 @@ function ContributeContent() {
                 ) : (
                   <span style={styles.counter}>
                     {charCount(values.contributor_km)}/
-                    {MAX_LENGTHS.contributor_km} characters
+                    {MAX_LENGTHS.contributor_km} {language === "en" ? "characters" : "តួអក្សរ"}
                   </span>
                 )}
               </div>
 
               <div style={styles.field}>
                 <label htmlFor="places_en" style={styles.label}>
-                  {FIELD_LABELS.places_en}
+                  {fieldLabel("places_en", language)}
                 </label>
                 <input
                   id="places_en"
@@ -404,7 +438,7 @@ function ContributeContent() {
                   value={values.places_en}
                   onChange={handleTextChange("places_en")}
                   onBlur={handleBlur("places_en")}
-                  placeholder="e.g. Siem Reap"
+                  placeholder={language === "en" ? "e.g. Siem Reap" : "ឧ. សៀមរាប"}
                   style={styles.input}
                 />
                 {errors.places_en ? (
@@ -412,14 +446,14 @@ function ContributeContent() {
                 ) : (
                   <span style={styles.counter}>
                     {charCount(values.places_en)}/{MAX_LENGTHS.places_en}{" "}
-                    characters
+                    {language === "en" ? "characters" : "តួអក្សរ"}
                   </span>
                 )}
               </div>
 
               <div style={styles.field}>
                 <label htmlFor="places_km" style={styles.label}>
-                  {FIELD_LABELS.places_km}
+                  {fieldLabel("places_km", language)}
                 </label>
                 <input
                   id="places_km"
@@ -427,7 +461,7 @@ function ContributeContent() {
                   value={values.places_km}
                   onChange={handleTextChange("places_km")}
                   onBlur={handleBlur("places_km")}
-                  placeholder="e.g. សៀមរាប"
+                  placeholder={language === "en" ? "e.g. Siem Reap" : "ឧ. សៀមរាប"}
                   style={styles.input}
                 />
                 {errors.places_km ? (
@@ -435,14 +469,14 @@ function ContributeContent() {
                 ) : (
                   <span style={styles.counter}>
                     {charCount(values.places_km)}/{MAX_LENGTHS.places_km}{" "}
-                    characters
+                    {language === "en" ? "characters" : "តួអក្សរ"}
                   </span>
                 )}
               </div>
 
               <div style={styles.field}>
                 <label htmlFor="description_en" style={styles.label}>
-                  {FIELD_LABELS.description_en}{" "}
+                  {fieldLabel("description_en", language)}{" "}
                   <span style={styles.required}>*</span>
                 </label>
                 <textarea
@@ -451,7 +485,7 @@ function ContributeContent() {
                   value={values.description_en}
                   onChange={handleTextChange("description_en")}
                   onBlur={handleBlur("description_en")}
-                  placeholder="Tell the story behind this kite..."
+                  placeholder={language === "en" ? "Tell the story behind this kite..." : "រៀបរាប់រឿងរ៉ាវរបស់ខ្លែងនេះ..."}
                   style={styles.textarea}
                 />
                 {errors.description_en ? (
@@ -459,14 +493,14 @@ function ContributeContent() {
                 ) : (
                   <span style={styles.counter}>
                     {charCount(values.description_en)}/
-                    {MAX_LENGTHS.description_en} characters
+                    {MAX_LENGTHS.description_en} {language === "en" ? "characters" : "តួអក្សរ"}
                   </span>
                 )}
               </div>
 
               <div style={styles.field}>
                 <label htmlFor="description_km" style={styles.label}>
-                  {FIELD_LABELS.description_km}
+                  {fieldLabel("description_km", language)}
                 </label>
                 <textarea
                   id="description_km"
@@ -474,7 +508,7 @@ function ContributeContent() {
                   value={values.description_km}
                   onChange={handleTextChange("description_km")}
                   onBlur={handleBlur("description_km")}
-                  placeholder="រៀបរាប់រឿងរ៉ាវរបស់ខ្លែងនេះ..."
+                  placeholder={language === "en" ? "Tell the story behind this kite..." : "រៀបរាប់រឿងរ៉ាវរបស់ខ្លែងនេះ..."}
                   style={styles.textarea}
                 />
                 {errors.description_km ? (
@@ -482,14 +516,15 @@ function ContributeContent() {
                 ) : (
                   <span style={styles.counter}>
                     {charCount(values.description_km)}/
-                    {MAX_LENGTHS.description_km} characters
+                    {MAX_LENGTHS.description_km} {language === "en" ? "characters" : "តួអក្សរ"}
                   </span>
                 )}
               </div>
 
               <div style={styles.field}>
                 <label htmlFor="photo" style={styles.label}>
-                  Photo <span style={styles.required}>*</span>
+                  {language === "en" ? "Photo" : "រូបថត"}{" "}
+                  <span style={styles.required}>*</span>
                 </label>
                 <input
                   id="photo"
@@ -505,7 +540,9 @@ function ContributeContent() {
                   <span style={styles.counter}>
                     {photo
                       ? `${photo.name} (${(photo.size / (1024 * 1024)).toFixed(2)} MB)`
-                      : "JPG, PNG, or WebP, max 5 MB"}
+                      : language === "en"
+                        ? "JPG, PNG, or WebP, max 5 MB"
+                        : "JPG, PNG ឬ WebP អតិបរមា 5 MB"}
                   </span>
                 )}
               </div>
@@ -519,7 +556,13 @@ function ContributeContent() {
                 }
                 disabled={submitting}
               >
-                {submitting ? "Submitting..." : "Submit Entry"}
+                {submitting
+                  ? language === "en"
+                    ? "Submitting..."
+                    : "កំពុងដាក់ស្នើ..."
+                  : language === "en"
+                    ? "Submit Entry"
+                    : "ដាក់ស្នើធាតុ"}
               </button>
             </form>
           </div>

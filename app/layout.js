@@ -1,4 +1,6 @@
 import collection from "../collection.config.js";
+import { LanguageProvider } from "../contexts/language-context.js";
+import LanguageWrapper from "./language-wrapper.js";
 
 export const metadata = {
   title: `${collection.name} — Khmer Living Archive`,
@@ -18,7 +20,11 @@ export default function RootLayout({ children }) {
           minHeight: "100vh",
         }}
       >
-        {children}
+        <LanguageProvider>
+          <LanguageWrapper>
+            {children}
+          </LanguageWrapper>
+        </LanguageProvider>
       </body>
     </html>
   );

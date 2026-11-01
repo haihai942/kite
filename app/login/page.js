@@ -41,7 +41,7 @@ function LoginContent() {
 
   return (
     <>
-      <Header locale="en" />
+      <Header />
       <main style={styles.wrap}>
         <div style={styles.header}>
           <p style={styles.kicker}>KHMER LIVING ARCHIVE</p>
