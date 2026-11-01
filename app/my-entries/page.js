@@ -13,12 +13,28 @@ const STATUS_LABELS = {
   returned: { en: "Returned", km: "ត្រូវតម្រូវឱ្យកែសម្រួលវិញ" }
 };
 
+// Filter bar options. "all" shows everything; the other three match the
+// status values stored on each entry. Khmer labels reuse the wording already
+// defined in STATUS_LABELS so the two stay consistent.
+const FILTER_OPTIONS = [
+  { id: "all", en: "All", km: "ទាំងអស់" },
+  { id: "published", ...STATUS_LABELS.published },
+  { id: "pending", ...STATUS_LABELS.pending },
+  { id: "returned", ...STATUS_LABELS.returned }
+];
+
 const styles = {
   wrap: { maxWidth: 720, margin: "0 auto", padding: "40px 24px 80px" },
   kicker: { fontFamily: "'Courier New', monospace", color: "#1E40AF", fontSize: 14, fontWeight: 600, letterSpacing: 1 },
   title: { fontSize: 30, fontWeight: 700, margin: "16px 0 12px", lineHeight: 1.2, color: "#1E3A8A" },
+  titleRow: { display: "flex", flexWrap: "wrap", alignItems: "center", justifyContent: "space-between", gap: 12 },
+  addButton: { display: "inline-block", padding: "10px 18px", backgroundColor: "#1E40AF", color: "#FFFFFF", textDecoration: "none", borderRadius: 6, fontSize: 14, fontWeight: 600, whiteSpace: "nowrap" },
   card: { marginTop: 24, padding: 32, backgroundColor: "#FFFFFF", border: "1px solid #93C5FD", borderRadius: 10, textAlign: "center" },
   count: { fontFamily: "'Courier New', monospace", fontSize: 14, color: "#3B82F6", fontWeight: 600, marginTop: 32, marginBottom: 20 },
+  filterBar: { display: "flex", flexWrap: "wrap", gap: 10, marginBottom: 24 },
+  filterButton: { padding: "8px 16px", backgroundColor: "#FFFFFF", color: "#1E40AF", border: "1px solid #93C5FD", borderRadius: 999, fontSize: 14, fontWeight: 600, cursor: "pointer", lineHeight: 1.5 },
+  filterButtonActive: { padding: "8px 16px", backgroundColor: "#1E40AF", color: "#FFFFFF", border: "1px solid #1E40AF", borderRadius: 999, fontSize: 14, fontWeight: 600, cursor: "pointer", lineHeight: 1.5 },
+  filterEmptyText: { fontSize: 15, color: "#64748B", fontStyle: "italic", textAlign: "center", padding: "32px 0" },
   entriesList: { display: "flex", flexDirection: "column", gap: 20 },
   entryCard: { backgroundColor: "#FFFFFF", border: "1px solid #93C5FD", borderRadius: 12, padding: 20, display: "flex", flexDirection: "column", gap: 16 },
   entryHeader: { display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12 },
@@ -126,13 +142,28 @@ function MyEntriesContent() {
   const [pendingDeleteId, setPendingDeleteId] = useState(null);
   const [deleting, setDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState(null);
+  // Active entry-status filter ("all" | "published" | "pending" | "returned").
+  const [statusFilter, setStatusFilter] = useState("all");
 
   const { language } = useLanguage();
+  // `language` is read reactively from the language context via useLanguage().
+  // Re-reading it on every render means the filter buttons (and every other
+  // language-dependent label below) re-render the instant the toggle changes
+  // the language, so button text can never go stale. It is normalized to a
+  // known value so an unexpected context value cannot leave blank labels.
+  const activeLanguage = language === "km" ? "km" : "en";
 
   const getText = (entry, field) => {
     if (!entry) return "";
-    return entry[`${field}_${language}`] || entry[`${field}_en`] || "";
+    return entry[`${field}_${activeLanguage}`] || entry[`${field}_en`] || "";
   };
+
+  // Entries shown after the status filter bar is applied. "all" keeps every
+  // entry; the other filters match the entry’s status (defaulting to pending).
+  const filteredEntries =
+    statusFilter === "all"
+      ? entries
+      : entries.filter((entry) => (entry.status || "pending") === statusFilter);
 
   useEffect(() => {
     let active = true;
@@ -176,7 +207,7 @@ function MyEntriesContent() {
 
   const getStatusText = (status) => {
     const label = STATUS_LABELS[status] || STATUS_LABELS.pending;
-    return label[language] || label.en;
+    return label[activeLanguage] || label.en;
   };
 
   const getStatusBadgeStyle = (status) => {
@@ -281,7 +312,7 @@ function MyEntriesContent() {
         <Header />
         <main style={styles.wrap}>
           <p style={styles.kicker}>MY ENTRIES</p>
-          <h1 style={styles.title}>{language === "en" ? "My Entries" : "ការដាក់ស្នើរបស់ខ្ញុំ"}</h1>
+          <h1 style={styles.title}>{activeLanguage === "en" ? "My Entries" : "ការដាក់ស្នើរបស់ខ្ញុំ"}</h1>
           <div style={styles.card}>
             <p style={styles.loginMessage}>Please log in to view your entries</p>
             <Link href="/login" style={styles.buttonLink}>Log in</Link>
@@ -299,7 +330,12 @@ function MyEntriesContent() {
       <Header />
       <main style={styles.wrap}>
         <p style={styles.kicker}>MY ENTRIES</p>
-        <h1 style={styles.title}>{language === "en" ? "My Entries" : "ការដាក់ស្នើរបស់ខ្ញុំ"}</h1>
+        <div style={styles.titleRow}>
+          <h1 style={styles.title}>{activeLanguage === "en" ? "My Entries" : "ការដាក់ស្នើរបស់ខ្ញុំ"}</h1>
+          <Link href={`/contribute?lang=${activeLanguage}`} style={styles.addButton}>
+            {activeLanguage === "en" ? "Add New Entry" : "បន្ថែមធាតុថ្មី"}
+          </Link>
+        </div>
 
         {loading ? (
           <div style={styles.loadingContainer}><p style={styles.loadingText}>Loading your entries...</p></div>
@@ -313,44 +349,59 @@ function MyEntriesContent() {
         ) : (
           <>
             <p style={styles.count}>entries: {entries.length}</p>
-            <div style={styles.entriesList}>
-              {entries.map((entry) => (
-                <div key={entry.id} style={styles.entryCard}>
-                  <div style={styles.entryHeader}>
-                    <h3 style={styles.entryTitle}>{getText(entry, 'title') || "Untitled"}</h3>
-                    <span style={getStatusBadgeStyle(entry.status || 'pending')}>{getStatusText(entry.status || 'pending')}</span>
-                  </div>
-                  <p style={styles.entryDescription}>
-                    {getText(entry, 'description')?.substring(0, 150) || "No description available"}...
-                  </p>
-                  <div style={styles.entryMeta}>
-                    <span style={styles.metaItem}>Contributor: {getText(entry, 'contributor') || "Unknown"}</span>
-                    <span style={styles.metaItem}>Submitted: {new Date(entry.created_at).toLocaleDateString()}</span>
-                  </div>
-                  {entry.review_note && entry.review_note.trim() && (
-                    <div style={styles.reviewNoteBox}>
-                      <div style={styles.reviewNoteLabel}>Reviewer Note</div>
-                      <div style={styles.reviewNoteText}>{entry.review_note}</div>
-                    </div>
-                  )}
-                  <div style={styles.entryActions}>
-                    <Link href={`/entry/${entry.id}?lang=${language}`} style={styles.viewButton}>
-                      View Entry
-                    </Link>
-                    <Link href={`/entry/${entry.id}/edit?lang=${language}`} style={styles.editButton}>
-                      Edit
-                    </Link>
-                    <button
-                      type="button"
-                      onClick={() => handleDeleteClick(entry.id)}
-                      style={styles.deleteButton}
-                      disabled={deleting}
-                    >
-                      Delete
-                    </button>
-                  </div>
-                </div>
+            <div style={styles.filterBar}>
+              {FILTER_OPTIONS.map((option) => (
+                <button
+                  key={option.id}
+                  type="button"
+                  onClick={() => setStatusFilter(option.id)}
+                  style={statusFilter === option.id ? styles.filterButtonActive : styles.filterButton}
+                >
+                  {option[activeLanguage] || option.en}
+                </button>
               ))}
+            </div>
+            <div style={styles.entriesList}>
+              {filteredEntries.length === 0 ? (
+                <p style={styles.filterEmptyText}>No entries match this filter.</p>
+              ) : (
+                filteredEntries.map((entry) => (
+                  <div key={entry.id} style={styles.entryCard}>
+                    <div style={styles.entryHeader}>
+                      <h3 style={styles.entryTitle}>{getText(entry, 'title') || "Untitled"}</h3>
+                      <span style={getStatusBadgeStyle(entry.status || 'pending')}>{getStatusText(entry.status || 'pending')}</span>
+                    </div>
+                    <p style={styles.entryDescription}>
+                      {getText(entry, 'description')?.substring(0, 150) || "No description available"}...
+                    </p>
+                    <div style={styles.entryMeta}>
+                      <span style={styles.metaItem}>Contributor: {getText(entry, 'contributor') || "Unknown"}</span>
+                      <span style={styles.metaItem}>Submitted: {new Date(entry.created_at).toLocaleDateString()}</span>
+                    </div>
+                    {entry.review_note && entry.review_note.trim() && (
+                      <div style={styles.reviewNoteBox}>
+                        <div style={styles.reviewNoteLabel}>Reviewer Note</div>
+                        <div style={styles.reviewNoteText}>{entry.review_note}</div>
+                      </div>
+                    )}
+                    <div style={styles.entryActions}>
+                      <Link href={`/entry/${entry.id}?lang=${activeLanguage}`} style={styles.viewButton}>
+                        View Entry
+                      </Link>
+                      <Link href={`/entry/${entry.id}/edit?lang=${activeLanguage}`} style={styles.editButton}>
+                        Edit
+                      </Link>
+                      <button
+                        type="button"
+                        onClick={() => handleDeleteClick(entry.id)}
+                        style={styles.deleteButton}
+                        disabled={deleting}
+                      >
+                        Delete
+                      </button>
+                    </div>
+                </div>
+                )))}
             </div>
           </>
         )}
