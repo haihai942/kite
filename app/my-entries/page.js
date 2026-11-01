@@ -30,6 +30,7 @@ const styles = {
   entryActions: { display: "flex", gap: 12 },
   viewButton: { padding: "8px 16px", backgroundColor: "#1E40AF", color: "#FFFFFF", textDecoration: "none", borderRadius: 6, fontSize: 14, fontWeight: 600 },
   editButton: { padding: "8px 16px", backgroundColor: "#F1F5F9", color: "#475569", textDecoration: "none", borderRadius: 6, fontSize: 14, fontWeight: 600, border: "1px solid #CBD5E1" },
+  deleteButton: { padding: "8px 16px", backgroundColor: "#FEF2F2", color: "#DC2626", borderRadius: 6, fontSize: 14, fontWeight: 600, border: "1px solid #FECACA", cursor: "pointer" },
   loadingContainer: { textAlign: "center", padding: "40px 0", marginTop: 32 },
   loadingText: { fontSize: 16, color: "#64748B", fontStyle: "italic" },
   errorContainer: { textAlign: "center", padding: "40px 0", marginTop: 32, backgroundColor: "#FEF2F2", border: "1px solid #FECACA", borderRadius: 8 },
@@ -64,6 +65,54 @@ const styles = {
     lineHeight: 1.5,
     whiteSpace: "pre-wrap",
   },
+  // Delete confirmation modal
+  modalBackdrop: {
+    position: "fixed",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: "rgba(0, 0, 0, 0.5)",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    zIndex: 1000,
+  },
+  modalContent: {
+    backgroundColor: "#FFFFFF",
+    borderRadius: 12,
+    padding: 24,
+    maxWidth: 400,
+    width: "90%",
+    boxShadow: "0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)",
+    border: "1px solid #93C5FD",
+  },
+  modalTitle: { fontSize: 20, fontWeight: 600, color: "#1E3A8A", margin: "0 0 16px" },
+  modalText: { fontSize: 16, color: "#64748B", lineHeight: 1.6, margin: "0 0 24px" },
+  modalErrorText: { fontSize: 14, color: "#DC2626", fontWeight: 500, margin: "0 0 16px" },
+  modalButtons: { display: "flex", gap: 12, justifyContent: "flex-end" },
+  modalCancelButton: {
+    padding: "10px 20px",
+    backgroundColor: "#F8FAFC",
+    border: "1px solid #CBD5E1",
+    color: "#475569",
+    borderRadius: 6,
+    fontSize: 14,
+    fontWeight: 600,
+    cursor: "pointer",
+    flex: 1,
+  },
+  modalDeleteButton: {
+    padding: "10px 20px",
+    backgroundColor: "#DC2626",
+    border: "none",
+    color: "#FFFFFF",
+    borderRadius: 6,
+    fontSize: 14,
+    fontWeight: 600,
+    cursor: "pointer",
+    flex: 1,
+  },
 };
 
 function MyEntriesContent() {
@@ -73,6 +122,10 @@ function MyEntriesContent() {
   const [error, setError] = useState(null);
   const [user, setUser] = useState(null);
   const [authLoading, setAuthLoading] = useState(true);
+  // Delete state
+  const [pendingDeleteId, setPendingDeleteId] = useState(null);
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState(null);
 
   const { language } = useLanguage();
 
@@ -139,6 +192,74 @@ function MyEntriesContent() {
     }
     // pending keeps the default yellow style defined in styles.statusBadge
     return baseStyle;
+  };
+
+  // Open the confirmation modal for a specific entry.
+  const handleDeleteClick = (entryId) => {
+    setPendingDeleteId(entryId);
+    setDeleteError(null);
+  };
+
+  // Extract the storage file path from a Supabase public URL so we can
+  // remove the photo alongside the entry. Legacy local filenames are ignored.
+  const getStoragePathFromUrl = (url) => {
+    if (!url || typeof url !== "string") return null;
+    const marker = "/photos/";
+    const index = url.indexOf(marker);
+    if (index === -1) return null;
+    return url.substring(index + marker.length);
+  };
+
+  // Perform the delete after the reviewer confirms.
+  const handleDeleteConfirm = async () => {
+    const entryId = pendingDeleteId;
+    if (!entryId) return;
+
+    setDeleting(true);
+    setDeleteError(null);
+
+    try {
+      const supabase = createClient();
+      const target = entries.find((e) => e.id === entryId);
+
+      // Delete the entry row (RLS ensures only the owner can delete it).
+      const { error: deleteRowError } = await supabase
+        .from("entries")
+        .delete()
+        .eq("id", entryId);
+      if (deleteRowError) throw deleteRowError;
+
+      // Best-effort: remove the entry's photo from storage. A failure here
+      // must not block the delete, since the row is already gone.
+      const storagePath = getStoragePathFromUrl(target?.photo_urls?.[0]);
+      if (storagePath) {
+        try {
+          const { error: storageError } = await supabase.storage
+            .from("photos")
+            .remove([storagePath]);
+          if (storageError) {
+            console.warn("Failed to delete photo from storage:", storageError);
+          }
+        } catch (storageErr) {
+          console.warn("Error deleting photo from storage:", storageErr);
+        }
+      }
+
+      // Refresh the list by removing the deleted entry from local state.
+      setEntries((prev) => prev.filter((entry) => entry.id !== entryId));
+      setPendingDeleteId(null);
+    } catch (err) {
+      console.error("Error deleting entry:", err);
+      setDeleteError("Failed to delete entry. Please try again.");
+    } finally {
+      setDeleting(false);
+    }
+  };
+
+  // Close the confirmation modal.
+  const handleDeleteCancel = () => {
+    setPendingDeleteId(null);
+    setDeleteError(null);
   };
 
   if (authLoading) {
@@ -219,6 +340,14 @@ function MyEntriesContent() {
                     <Link href={`/entry/${entry.id}/edit?lang=${language}`} style={styles.editButton}>
                       Edit
                     </Link>
+                    <button
+                      type="button"
+                      onClick={() => handleDeleteClick(entry.id)}
+                      style={styles.deleteButton}
+                      disabled={deleting}
+                    >
+                      Delete
+                    </button>
                   </div>
                 </div>
               ))}
@@ -229,6 +358,47 @@ function MyEntriesContent() {
         <footer style={styles.footer}>
           Built in ICT 340 — Vibe Coding, Archived Kites new thing.
         </footer>
+
+        {/* Delete confirmation modal */}
+        {pendingDeleteId && (
+          <div
+            style={styles.modalBackdrop}
+            onClick={(e) => {
+              // Close modal when clicking on the backdrop (outside content)
+              if (e.target === e.currentTarget && !deleting) {
+                handleDeleteCancel();
+              }
+            }}
+          >
+            <div style={styles.modalContent}>
+              <h3 style={styles.modalTitle}>Delete Entry</h3>
+              <p style={styles.modalText}>
+                Are you sure you want to delete this entry? This cannot be undone.
+              </p>
+              {deleteError && (
+                <p style={styles.modalErrorText}>{deleteError}</p>
+              )}
+              <div style={styles.modalButtons}>
+                <button
+                  type="button"
+                  onClick={handleDeleteCancel}
+                  style={styles.modalCancelButton}
+                  disabled={deleting}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={handleDeleteConfirm}
+                  style={styles.modalDeleteButton}
+                  disabled={deleting}
+                >
+                  {deleting ? "Deleting..." : "Delete"}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </main>
     </>
   );
