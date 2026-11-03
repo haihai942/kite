@@ -25,8 +25,8 @@ function ReviewerQueuePageContent() {
   const [returnReason, setReturnReason] = useState("");
   const [returnError, setReturnError] = useState(null);
   // Chronological sort for the review backlog ("newest" | "oldest").
-  // Defaults to newest first, matching the order the query already returns.
-  const [sortOrder, setSortOrder] = useState("newest");
+  // Defaults to oldest first so the longest-waiting submissions get reviewed.
+  const [sortOrder, setSortOrder] = useState("oldest");
 
   const { language } = useLanguage();
 
@@ -85,7 +85,7 @@ function ReviewerQueuePageContent() {
           .from('entries')
           .select('*')
           .eq('status', 'pending')
-          .order('created_at', { ascending: false });
+          .order('created_at', { ascending: true });
         
         if (entriesError) {
           setError("Failed to load pending entries.");
@@ -125,7 +125,14 @@ function ReviewerQueuePageContent() {
       if (error) {
         throw new Error(error.message || `Failed to ${action} entry`);
       }
-      
+
+      // Strict success check: the RPC returns boolean true only when the
+      // review was actually saved. If it is not exactly true, treat it as a
+      // failure and leave the entry in the queue.
+      if (data !== true) {
+        throw new Error(`Failed to ${action} entry`);
+      }
+
       setEntries(prev => prev.filter(entry => entry.id !== entryId));
       
     } catch (err) {
