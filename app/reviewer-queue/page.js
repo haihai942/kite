@@ -6,6 +6,7 @@ import Link from "next/link";
 import Header from "../../components/header.js";
 import { createClient } from "../../lib/supabase-client.js";
 import { isUserReviewer } from "../../lib/reviewer-auth.js";
+import { formatSubmissionDate } from "../../lib/format-date.js";
 import { useLanguage } from "../../contexts/language-context.js";
 
 // Default note saved to the entry when a reviewer approves it.
@@ -287,7 +288,7 @@ function ReviewerQueuePageContent() {
                     Contributor: {getText(entry, 'contributor') || "Unknown"}
                   </span>
                   <span style={styles.metaItem}>
-                    Submitted: {new Date(entry.created_at).toLocaleDateString()}
+                    Submitted: {formatSubmissionDate(entry.created_at)}
                   </span>
                   <span style={styles.metaItem}>
                     ID: {entry.id.slice(0, 8)}...

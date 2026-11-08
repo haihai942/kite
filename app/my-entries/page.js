@@ -5,6 +5,7 @@ import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import Header from "../../components/header.js";
 import { createClient } from "../../lib/supabase-client.js";
+import { formatSubmissionDate } from "../../lib/format-date.js";
 import { useLanguage } from "../../contexts/language-context.js";
 
 const STATUS_LABELS = {
@@ -376,7 +377,7 @@ function MyEntriesContent() {
                     </p>
                     <div style={styles.entryMeta}>
                       <span style={styles.metaItem}>Contributor: {getText(entry, 'contributor') || "Unknown"}</span>
-                      <span style={styles.metaItem}>Submitted: {new Date(entry.created_at).toLocaleDateString()}</span>
+                      <span style={styles.metaItem}>Submitted: {formatSubmissionDate(entry.created_at)}</span>
                     </div>
                     {entry.review_note && entry.review_note.trim() && (
                       <div style={styles.reviewNoteBox}>
