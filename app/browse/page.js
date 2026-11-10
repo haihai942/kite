@@ -150,27 +150,29 @@ function BrowseContent() {
           <>
             <p style={styles.count}>entries in view: {displayEntries.length}</p>
 
-            {displayEntries.map((entry, index) => {
-              const imageUrl = getEntryImage(entry);
+            <div style={styles.entriesGrid}>
+              {displayEntries.map((entry, index) => {
+                const imageUrl = getEntryImage(entry);
 
-              return (
-                <Link
-                  key={entry.id || index}
-                  href={`/entry/${entry.id}?lang=${language}`}
-                  style={{ textDecoration: 'none', color: 'inherit' }}
-                >
-                  <EntryCard
-                    title={getText(entry, 'title') || "Untitled"}
-                    contributor={getText(entry, 'contributor') || "Unknown"}
-                    place={getText(entry, 'places') || "Unknown"}
-                    description={
-                      getText(entry, 'description') || "No description available"
-                    }
-                    image={imageUrl}
-                  />
-                </Link>
-              );
-            })}
+                return (
+                  <Link
+                    key={entry.id || index}
+                    href={`/entry/${entry.id}?lang=${language}`}
+                    style={{ textDecoration: 'none', color: 'inherit' }}
+                  >
+                    <EntryCard
+                      title={getText(entry, 'title') || "Untitled"}
+                      contributor={getText(entry, 'contributor') || "Unknown"}
+                      place={getText(entry, 'places') || "Unknown"}
+                      description={
+                        getText(entry, 'description') || "No description available"
+                      }
+                      image={imageUrl}
+                    />
+                  </Link>
+                );
+              })}
+            </div>
           </>
         )}
 
@@ -198,9 +200,10 @@ export default function BrowsePage() {
 
 const styles = {
   wrap: {
-    maxWidth: 720,
-    margin: "0 auto",
-    padding: "40px 24px 80px",
+    width: "100%",
+    margin: 0,
+    padding: "40px 32px 80px",
+    boxSizing: "border-box",
   },
   header: {
     marginBottom: 32,
@@ -242,6 +245,11 @@ const styles = {
     fontSize: 16,
     color: "#64748B",
     fontStyle: "italic",
+  },
+  entriesGrid: {
+    display: "grid",
+    gridTemplateColumns: "repeat(3, 1fr)",
+    gap: 16,
   },
   errorContainer: {
     textAlign: "center",

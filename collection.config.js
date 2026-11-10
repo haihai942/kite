@@ -17,7 +17,7 @@ const collection = {
   curator: "Songhai Im",
 
   // Where does your knowledge come from? A person, a place, a community.
-  source: "My older siblings and my cousins.",
+  source: "My siblings and friends.",
 };
 
 export default collection;

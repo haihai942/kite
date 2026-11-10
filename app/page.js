@@ -78,19 +78,6 @@ function HomeContent() {
           {collection.description}
         </p>
 
-        <div style={styles.card}>
-          <p style={styles.cardLabel}>CURATED BY</p>
-          <p style={styles.cardValue}>
-            {collection.curator}
-          </p>
-        </div>
-        <div style={styles.card}>
-          <p style={styles.cardLabel}>SOURCE</p>
-          <p style={styles.cardValue}>
-            {collection.source}
-          </p>
-        </div>
-
         {loading ? (
           <div style={styles.loadingContainer}>
             <p style={styles.loadingText}>{language === "en" ? "Loading archive entries..." : "កំពុងផ្ទុកធាតុប័ណ្ណសារ..."}</p>
@@ -108,34 +95,49 @@ function HomeContent() {
                 <p style={styles.emptyText}>{language === "en" ? "No entries found in the archive." : "គ្មានធាតុណាមួយត្រូវបានរកឃើញនៅក្នុងប័ណ្ណសារ។"}</p>
               </div>
             ) : (
-              entries.map((entry, index) => {
-                const itemTitle = getEntryText(entry, 'title') || "Untitled";
-                const imageUrl = getEntryImage(entry);
+              <div style={styles.entriesGrid}>
+                {entries.map((entry, index) => {
+                  const itemTitle = getEntryText(entry, 'title') || "Untitled";
+                  const imageUrl = getEntryImage(entry);
 
-                return (
-                  <div
-                    key={entry.id || index}
-                    style={styles.previewCard}
-                    onClick={() => goToDetail(entry.id)}
-                  >
-                    {imageUrl && (
-                      <div style={styles.imageWrapper}>
-                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img
-                          src={imageUrl}
-                          alt={itemTitle}
-                          style={styles.previewImage}
-                        />
-                      </div>
-                    )}
-                    <h2 style={styles.previewTitle}>{itemTitle}</h2>
-                    <span style={styles.detailBtn}>Click for more details →</span>
-                  </div>
-                );
-              })
+                  return (
+                    <div
+                      key={entry.id || index}
+                      style={styles.previewCard}
+                      onClick={() => goToDetail(entry.id)}
+                    >
+                      {imageUrl && (
+                        <div style={styles.imageWrapper}>
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img
+                            src={imageUrl}
+                            alt={itemTitle}
+                            style={styles.previewImage}
+                          />
+                        </div>
+                      )}
+                      <h2 style={styles.previewTitle}>{itemTitle}</h2>
+                      <span style={styles.detailBtn}>Click for more details →</span>
+                    </div>
+                  );
+                })}
+              </div>
             )}
           </>
         )}
+
+        <div style={styles.card}>
+          <p style={styles.cardLabel}>CURATED BY</p>
+          <p style={styles.cardValue}>
+            {collection.curator}
+          </p>
+        </div>
+        <div style={styles.card}>
+          <p style={styles.cardLabel}>SOURCE</p>
+          <p style={styles.cardValue}>
+            {collection.source}
+          </p>
+        </div>
 
         <footer style={styles.footer}>
           Built in ICT 340 — Vibe Coding, Archived Kites new thing.
@@ -155,9 +157,10 @@ export default function Home() {
 
 const styles = {
   wrap: {
-    maxWidth: 720,
-    margin: "0 auto",
-    padding: "40px 24px 80px",
+    width: "100%",
+    margin: 0,
+    padding: "40px 32px 80px",
+    boxSizing: "border-box",
   },
   kicker: {
     fontFamily: "'Courier New', monospace",
@@ -215,18 +218,22 @@ const styles = {
     borderStyle: "solid",
     borderColor: "#93C5FD",
     borderRadius: 12,
-    padding: 16,
-    marginBottom: 20,
+    padding: 12,
     display: "flex",
     flexDirection: "column",
-    gap: 12,
+    gap: 8,
     cursor: "pointer",
     boxSizing: "border-box",
     transition: "transform 0.15s ease, boxShadow 0.15s ease",
   },
+  entriesGrid: {
+    display: "grid",
+    gridTemplateColumns: "repeat(3, 1fr)",
+    gap: 16,
+  },
   imageWrapper: {
     width: "100%",
-    height: 220,
+    height: 120,
     borderRadius: 8,
     overflow: "hidden",
     backgroundColor: "#F1F5F9",
@@ -237,26 +244,26 @@ const styles = {
     objectFit: "cover",
   },
   previewTitle: {
-    fontSize: 20,
+    fontSize: 14,
     fontWeight: 700,
     color: "#1E3A8A",
     margin: 0,
-    minHeight: 28,
-    display: "flex",
-    alignItems: "center",
+    lineHeight: 1.3,
+    wordBreak: "break-word",
   },
   detailBtn: {
     alignSelf: "flex-start",
-    padding: "8px 14px",
+    padding: "6px 10px",
     backgroundColor: "#EFF6FF",
     borderWidth: "1px",
     borderStyle: "solid",
     borderColor: "#93C5FD",
     borderRadius: 6,
     color: "#1E40AF",
-    fontSize: 14,
+    fontSize: 11,
     fontWeight: 600,
     display: "inline-block",
+    marginTop: "auto",
   },
   loadingContainer: {
     textAlign: "center",
