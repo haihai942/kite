@@ -1,36 +1,75 @@
-# Khmer Living Archive — starter
+# Kite — Khmer Living Archive
 
-This is the starting point for your ICT 340 capstone: a community archive that preserves a piece of Khmer culture. Right now it's one page. By December it will browse, search, take contributions, and publish reviewed entries. Same skeleton for everyone; the collection is yours.
+A community archive for **Kite**, a Khmer game. It preserves how the game was played so future generations can still learn it. The archive is bilingual (English / ខ្មែរ), backed by Supabase, and lets signed-in contributors submit entries that a reviewer approves before they go public.
 
-## Lab 1: get this live
+Built in ICT 340 at AUPP.
 
-Follow the Lab 1 guide on Canvas. The short version:
+## What it does
 
-1. Click **Use this template** (top right) → **Create a new repository**. Name it after your archive.
-2. Go to [vercel.com](https://vercel.com), sign in with GitHub, **Add New → Project**, import your new repository, and click **Deploy**.
-3. Clone your repo, open it in VS Code, edit `collection.config.js` (the only file you touch today), then commit and push:
+- **Browse and search** — published entries are listed on the home page and on `/browse`, where you can search by title, contributor, place, or description.
+- **Contributor accounts** — sign up and log in with email and password (`/signup`, `/login`).
+- **Own your entries** — `/my-entries` shows your own submissions, filterable by status, with edit and delete.
+- **Submit → review → publish** — new entries start as `pending`, a reviewer can `published` or `returned` them from `/reviewer-queue`, and only published entries appear to the public.
+- **Bilingual** — every entry stores English and Khmer text side by side, and a header toggle switches the whole site between EN and ខ្មែរ.
 
-   ```bash
-   git clone https://github.com/YOUR-USERNAME/YOUR-REPO-NAME.git
-   cd YOUR-REPO-NAME
-   code .
-   # edit collection.config.js, then:
-   git add .
-   git commit -m "make it mine"
-   git push
-   ```
+### Routes
 
-4. Watch Vercel redeploy on its own, then submit your live URL to the Lab 1 assignment on Canvas.
+| Path | Purpose |
+|---|---|
+| `/` | Home — collection intro + preview of published entries |
+| `/browse` | Search and browse all published entries |
+| `/entry/[id]` | Full detail view of a single entry |
+| `/entry/[id]/edit` | Edit one of your own entries |
+| `/contribute` | Submit a new entry (photo + bilingual fields) |
+| `/my-entries` | Your own entries, filterable by status |
+| `/reviewer-queue` | Review pending entries (reviewers only) |
+| `/login`, `/signup` | Contributor authentication |
 
-## Running it locally (optional today, needed from week 2)
+## Setup
 
 ```bash
+git clone https://github.com/YOUR-USERNAME/YOUR-REPO-NAME.git
+cd YOUR-REPO-NAME
 npm install
+```
+
+Create a `.env.local` file in the project root (it is git-ignored — never commit it) with your Supabase project's values:
+
+```bash
+NEXT_PUBLIC_SUPABASE_URL=https://your-project-ref.supabase.co
+NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=your-publishable-key
+```
+
+See `.env.example` for the shape of these variables. Get the values from your Supabase project settings → API.
+
+Then run it:
+
+```bash
 npm run dev
 ```
 
-Then open http://localhost:3000.
+Open http://localhost:3000.
+
+For a production build:
+
+```bash
+npm run build
+npm run start
+```
+
+On Vercel, add the same two environment variables under **Project → Settings → Environment Variables**.
+
+## How it is put together
+
+- **`collection.config.js`** — the single source of the archive's identity (name, description, curator, source). Pages read from it; nothing else hard-codes those values.
+- **`app/`** — Next.js App Router pages, one folder per route above. `layout.js` wraps every page in the language provider and header.
+- **`components/`** — shared UI (`header.js`, `entryCard.js`).
+- **`contexts/language-context.js`** — the EN / ខ្មែរ language state shared across pages.
+- **`lib/`** — Supabase clients (`supabase-client.js`, `supabase.js`), reviewer check (`reviewer-auth.js`), and helpers (`file-validation.js`, `format-date.js`).
+- **`data/`** — sample entries and images.
+- **`middleware.js`** — refreshes the Supabase auth session on each request.
 
 ## Rules of the road
 
 You own what you ship. Every line that lands in this repository is yours to explain, whoever or whatever wrote it.
+

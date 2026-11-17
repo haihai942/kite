@@ -592,9 +592,10 @@ export default function ContributePage() {
 
 const styles = {
   wrap: {
-    maxWidth: 720,
-    margin: "0 auto",
-    padding: "40px 24px 80px",
+    width: "100%",
+    margin: 0,
+    padding: "40px 32px 80px",
+    boxSizing: "border-box",
   },
   header: {
     marginBottom: 32,

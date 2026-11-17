@@ -97,7 +97,7 @@ function LoginContent() {
               {loading ? "Signing in..." : "Sign In"}
             </button>
 
-            <div style={styles.footer}>
+            <div style={styles.authFooter}>
               <p style={styles.footerText}>
                 Don't have an account?{" "}
                 <a href="/signup" style={styles.link}>
@@ -113,7 +113,7 @@ function LoginContent() {
           </form>
         </div>
 
-        <footer style={styles.pageFooter}>
+        <footer style={styles.footer}>
           Built in ICT 340 — Vibe Coding, Archived Kites new thing.
         </footer>
       </main>
@@ -135,9 +135,10 @@ export default function LoginPage() {
 
 const styles = {
   wrap: {
-    maxWidth: 720,
-    margin: "0 auto",
-    padding: "40px 24px 80px",
+    width: "100%",
+    margin: 0,
+    padding: "40px 32px 80px",
+    boxSizing: "border-box",
   },
   header: {
     marginBottom: 32,
@@ -224,7 +225,7 @@ const styles = {
     marginTop: 8,
     marginBottom: 24,
   },
-  footer: {
+  authFooter: {
     marginTop: 16,
   },
   footerText: {
@@ -237,7 +238,7 @@ const styles = {
     fontWeight: 600,
     textDecoration: "none",
   },
-  pageFooter: {
+  footer: {
     marginTop: 64,
     paddingTop: 24,
     borderWidth: "1px",

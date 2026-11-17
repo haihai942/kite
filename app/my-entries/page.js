@@ -25,7 +25,12 @@ const FILTER_OPTIONS = [
 ];
 
 const styles = {
-  wrap: { maxWidth: 720, margin: "0 auto", padding: "40px 24px 80px" },
+  wrap: {
+    width: "100%",
+    margin: 0,
+    padding: "40px 32px 80px",
+    boxSizing: "border-box",
+  },
   kicker: { fontFamily: "'Courier New', monospace", color: "#1E40AF", fontSize: 14, fontWeight: 600, letterSpacing: 1 },
   title: { fontSize: 30, fontWeight: 700, margin: "16px 0 12px", lineHeight: 1.2, color: "#1E3A8A" },
   titleRow: { display: "flex", flexWrap: "wrap", alignItems: "center", justifyContent: "space-between", gap: 12 },
@@ -58,7 +63,19 @@ const styles = {
   buttonLink: { display: "inline-block", padding: "12px 20px", backgroundColor: "#1E40AF", color: "#FFFFFF", textDecoration: "none", borderRadius: 6, fontSize: 15, fontWeight: 600 },
   helperText: { fontSize: 14, color: "#64748B", margin: "16px 0 0" },
   link: { color: "#1E40AF", fontWeight: 600, textDecoration: "none" },
-  footer: { marginTop: 64, paddingTop: 24, borderTop: "1px solid #93C5FD", fontSize: 13, color: "#64748B" },
+  footer: {
+    marginTop: 64,
+    paddingTop: 24,
+    borderWidth: "1px",
+    borderStyle: "solid",
+    borderColor: "#93C5FD",
+    borderTopStyle: "solid",
+    borderLeftStyle: "none",
+    borderRightStyle: "none",
+    borderBottomStyle: "none",
+    fontSize: 13,
+    color: "#64748B",
+  },
   reviewNoteBox: {
     marginTop: 8,
     padding: "12px 16px",
