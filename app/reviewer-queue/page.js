@@ -9,8 +9,81 @@ import { isUserReviewer } from "../../lib/reviewer-auth.js";
 import { formatSubmissionDate } from "../../lib/format-date.js";
 import { useLanguage } from "../../contexts/language-context.js";
 
-// Default note saved to the entry when a reviewer approves it.
-const APPROVAL_NOTE = "Thank you for sharing your story with us!";
+// Default note saved to the entry when a reviewer approves it. Bilingual so the
+// note is written in the active language at the moment the reviewer approves.
+const APPROVAL_NOTE = {
+  en: "Thank you for sharing your story with us!",
+  km: "សូមអរគុណសម្រាប់ការចែករំលែករឿងរ៉ាវរបស់អ្នកជាមួយយើង!",
+};
+
+// UI chrome for the reviewer queue in both languages. Kept as a function so the
+// strings always reflect the language active at render time. User-entered entry
+// content is never translated here — only labels, buttons and messages.
+function reviewerQueueText(language) {
+  const en = language === "en";
+  return {
+    kicker: en ? "REVIEWER QUEUE" : "ជួររង់ចាំការពិនិត្យ",
+    title: en ? "Reviewer Queue" : "ជួររង់ចាំការពិនិត្យ",
+    loading: en ? "Loading..." : "កំពុងផ្ទុក...",
+    loginRequired: en
+      ? "Please log in to access the reviewer queue"
+      : "សូមចូលដើម្បីចូលប្រើជួររង់ចាំការពិនិត្យ",
+    logIn: en ? "Log In" : "ចូល",
+    noPermission: en
+      ? "You do not have reviewer permissions."
+      : "អ្នកមិនមានសិទ្ធិពិនិត្យទេ។",
+    returnHome: en ? "Return Home" : "ត្រឡប់ទៅទំព័រដើម",
+    info: en
+      ? "Review pending entries. Approve to publish or return for edits."
+      : "ពិនិត្យធាតុកំពុងរង់ចាំ។ អនុម័តដើម្បីផ្សព្វផ្សាយ ឬត្រឡប់វិញសម្រាប់ការកែសម្រួល។",
+    countLoading: en ? "Loading..." : "កំពុងផ្ទុក...",
+    pendingCount: (n) =>
+      en ? `${n} pending ${n === 1 ? "entry" : "entries"}` : `ធាតុកំពុងរង់ចាំ ${n}`,
+    sortBy: en ? "Sort by date:" : "តម្រៀបតាមកាលបរិច្ឆេទ៖",
+    newestFirst: en ? "Newest First" : "ថ្មីបំផុតមុន",
+    oldestFirst: en ? "Oldest First" : "ចាស់បំផុតមុន",
+    loadingEntries: en ? "Loading pending entries..." : "កំពុងផ្ទុកធាតុកំពុងរង់ចាំ...",
+    noEntries: en ? "No pending entries to review" : "គ្មានធាតុកំពុងរង់ចាំសម្រាប់ពិនិត្យទេ",
+    // Fallback labels for missing entry content (these are UI, not user data).
+    untitled: en ? "Untitled" : "គ្មានចំណងជើង",
+    pendingBadge: en ? "Pending Review" : "កំពុងរង់ចាំការពិនិត្យ",
+    noDescription: en ? "No description" : "គ្មានការពិពណ៌នា",
+    contributorLabel: en ? "Contributor:" : "អ្នកចែករំលែក៖",
+    unknown: en ? "Unknown" : "មិនស្គាល់",
+    submittedLabel: en ? "Submitted:" : "បានដាក់ស្នើ៖",
+    idLabel: en ? "ID:" : "លេខសម្គាល់៖",
+    viewEntry: en ? "View Entry" : "មើលធាតុ",
+    processing: en ? "Processing..." : "កំពុងដំណើរការ...",
+    approve: en ? "Approve" : "អនុម័ត",
+    return: en ? "Return" : "ត្រឡប់វិញ",
+    returnModalTitle: en ? "Return for Edits" : "ត្រឡប់វិញដើម្បីកែសម្រួល",
+    returnModalText: en
+      ? "Tell the contributor what needs to change. This note is saved with the entry."
+      : "ប្រាប់អ្នកចូលរួមថាតើត្រូវកែអ្វីខ្លះ។ កំណត់សម្គាល់នេះត្រូវបានរក្សាទុកជាមួយធាតុ។",
+    returnPlaceholder: en
+      ? "e.g. Please add the Khmer title and a clearer photo."
+      : "ឧ. សូមបន្ថែមចំណងជើងជាភាសាខ្មែរ និងរូបថតច្បាស់ជាងនេះ។",
+    cancel: en ? "Cancel" : "បោះបង់",
+    returning: en ? "Returning..." : "កំពុងត្រឡប់វិញ...",
+    returnEntry: en ? "Return Entry" : "ត្រឡប់ធាតុវិញ",
+    reasonRequired: en
+      ? "Please enter a reason so the contributor knows what to fix."
+      : "សូមបញ្ចូលហេតុផល ដើម្បីឱ្យអ្នកចូលរួមដឹងថាត្រូវកែអ្វី។",
+    loadFailed: en
+      ? "Failed to load pending entries."
+      : "មិនអាចផ្ទុកធាតុកំពុងរង់ចាំបានទេ។",
+    loadError: en
+      ? "An error occurred while loading entries."
+      : "មានបញ្ហាកើតឡើងពេលផ្ទុកធាតុ។",
+    reviewFailed: (action) =>
+      en
+        ? `Failed to ${action} entry. Please try again.`
+        : `មិនអាច${action === "approve" ? "អនុម័ត" : "ត្រឡប់"}ធាតុបានទេ។ សូមព្យាយាមម្តងទៀត។`,
+    footer: en
+      ? "Archived Kites — Preserving stories and memories, one kite at a time."
+      : "បណ្ណសារខ្លែង — រក្សាទុករឿងរ៉ាវ និងការចងចាំរបស់យើង។",
+  };
+}
 
 function ReviewerQueuePageContent() {
   const searchParams = useSearchParams();
@@ -30,6 +103,10 @@ function ReviewerQueuePageContent() {
   const [sortOrder, setSortOrder] = useState("oldest");
 
   const { language } = useLanguage();
+
+  // UI chrome for the active language, read on every render so the page
+  // re-translates the instant the header toggle flips.
+  const t = reviewerQueueText(language);
 
   const getText = (entry, field) => {
     if (!entry) return "";
@@ -89,13 +166,13 @@ function ReviewerQueuePageContent() {
           .order('created_at', { ascending: true });
         
         if (entriesError) {
-          setError("Failed to load pending entries.");
+          setError("loadFailed");
           return;
         }
         
         setEntries(entriesData || []);
       } catch (err) {
-        setError("An error occurred while loading entries.");
+        setError("loadError");
       } finally {
         setLoading(false);
       }
@@ -106,7 +183,7 @@ function ReviewerQueuePageContent() {
 
   const handleReview = async (entryId, action, noteText = null) => {
     if (!(await isAuthorizedReviewer())) {
-      setError("You do not have reviewer permissions.");
+      setError("noPermission");
       return;
     }
 
@@ -137,14 +214,18 @@ function ReviewerQueuePageContent() {
       setEntries(prev => prev.filter(entry => entry.id !== entryId));
       
     } catch (err) {
-      setError(`Failed to ${action} entry: ${err.message}`);
+      console.error("Error reviewing entry:", err);
+      // Store a language-neutral flag; the message is translated at render.
+      setError(`reviewFailed:${action}`);
     } finally {
       setProcessing(prev => ({ ...prev, [entryId]: false }));
     }
   };
 
-  // Approve: publish the entry and attach a default thank-you note.
-  const handleApprove = (entryId) => handleReview(entryId, 'approve', APPROVAL_NOTE);
+  // Approve: publish the entry and attach a default thank-you note, written in
+  // the active language at the moment of approval.
+  const handleApprove = (entryId) =>
+    handleReview(entryId, 'approve', APPROVAL_NOTE[language] || APPROVAL_NOTE.en);
 
   // Open the return-reason modal for a specific entry.
   const handleReturnClick = (entryId) => {
@@ -157,7 +238,7 @@ function ReviewerQueuePageContent() {
   const handleReturnConfirm = async () => {
     const trimmedReason = returnReason.trim();
     if (!trimmedReason) {
-      setReturnError("Please enter a reason so the contributor knows what to fix.");
+      setReturnError(t.reasonRequired);
       return;
     }
     const entryId = returnEntryId;
@@ -172,7 +253,7 @@ function ReviewerQueuePageContent() {
         <Header />
         <main style={styles.wrap}>
           <div style={styles.loadingContainer}>
-            <p style={styles.loadingText}>Loading...</p>
+            <p style={styles.loadingText}>{t.loading}</p>
           </div>
         </main>
       </>
@@ -185,13 +266,13 @@ function ReviewerQueuePageContent() {
         <Header />
         <main style={styles.wrap}>
           <p style={styles.kicker}>
-            {language === "en" ? "REVIEWER QUEUE" : "ជួររង់ចាំការពិនិត្យ"}
+            {t.kicker}
           </p>
-          <h1 style={styles.title}>{language === "en" ? "Reviewer Queue" : "ជួររង់ចាំការពិនិត្យ"}</h1>
+          <h1 style={styles.title}>{t.title}</h1>
           <div style={styles.card}>
-            <p style={styles.loginMessage}>Please log in to access the reviewer queue</p>
+            <p style={styles.loginMessage}>{t.loginRequired}</p>
             <Link href={`/login?lang=${language}`} style={styles.buttonLink}>
-              Log In
+              {t.logIn}
             </Link>
           </div>
         </main>
@@ -205,13 +286,13 @@ function ReviewerQueuePageContent() {
         <Header />
         <main style={styles.wrap}>
           <p style={styles.kicker}>
-            {language === "en" ? "REVIEWER QUEUE" : "ជួររង់ចាំការពិនិត្យ"}
+            {t.kicker}
           </p>
-          <h1 style={styles.title}>{language === "en" ? "Reviewer Queue" : "ជួររង់ចាំការពិនិត្យ"}</h1>
+          <h1 style={styles.title}>{t.title}</h1>
           <div style={styles.card}>
-            <p style={styles.errorText}>You do not have reviewer permissions.</p>
+            <p style={styles.errorText}>{t.noPermission}</p>
             <Link href={`/?lang=${language}`} style={styles.buttonLink}>
-              Return Home
+              {t.returnHome}
             </Link>
           </div>
         </main>
@@ -223,44 +304,30 @@ function ReviewerQueuePageContent() {
     <>
       <Header />
       <main style={styles.wrap}>
-        <p style={styles.kicker}>
-          {language === "en" ? "REVIEWER QUEUE" : "ជួររង់ចាំការពិនិត្យ"}
-        </p>
-        <h1 style={styles.title}>{language === "en" ? "Reviewer Queue" : "ជួររង់ចាំការពិនិត្យ"}</h1>
+        <p style={styles.kicker}>{t.kicker}</p>
+        <h1 style={styles.title}>{t.title}</h1>
         
         <div style={styles.infoBox}>
-          <p style={styles.infoText}>
-            {language === "en"
-              ? "Review pending entries. Approve to publish or return for edits."
-              : "ពិនិត្យធាតុកំពុងរង់ចាំ។ អនុម័តដើម្បីផ្សព្វផ្សាយ ឬត្រឡប់វិញសម្រាប់ការកែសម្រួល។"}
-          </p>
+          <p style={styles.infoText}>{t.info}</p>
           <p style={styles.count}>
-            {loading
-              ? language === "en"
-                ? "Loading..."
-                : "កំពុងផ្ទុក..."
-              : language === "en"
-                ? `${entries.length} pending ${entries.length === 1 ? "entry" : "entries"}`
-                : `ធាតុកំពុងរង់ចាំ ${entries.length}`}
+            {loading ? t.countLoading : t.pendingCount(entries.length)}
           </p>
           {!loading && entries.length > 1 && (
             <div style={styles.sortRow}>
-              <span style={styles.sortLabel}>
-                {language === "en" ? "Sort by date:" : "តម្រៀបតាមកាលបរិច្ឆេទ៖"}
-              </span>
+              <span style={styles.sortLabel}>{t.sortBy}</span>
               <button
                 type="button"
                 onClick={() => setSortOrder("newest")}
                 style={sortOrder === "newest" ? styles.sortButtonActive : styles.sortButton}
               >
-                {language === "en" ? "Newest First" : "ថ្មីបំផុតមុន"}
+                {t.newestFirst}
               </button>
               <button
                 type="button"
                 onClick={() => setSortOrder("oldest")}
                 style={sortOrder === "oldest" ? styles.sortButtonActive : styles.sortButton}
               >
-                {language === "en" ? "Oldest First" : "ចាស់បំផុតមុន"}
+                {t.oldestFirst}
               </button>
             </div>
           )}
@@ -268,19 +335,29 @@ function ReviewerQueuePageContent() {
         
         {error && (
           <div style={styles.errorContainer}>
-            <p style={styles.errorText}>{error}</p>
+            <p style={styles.errorText}>
+              {error === "loadFailed"
+                ? t.loadFailed
+                : error === "loadError"
+                  ? t.loadError
+                  : error === "noPermission"
+                    ? t.noPermission
+                    : error.startsWith("reviewFailed:")
+                      ? t.reviewFailed(error.split(":")[1])
+                      : error}
+            </p>
           </div>
         )}
         
         {loading && (
           <div style={styles.loadingContainer}>
-            <p style={styles.loadingText}>Loading pending entries...</p>
+            <p style={styles.loadingText}>{t.loadingEntries}</p>
           </div>
         )}
         
         {!loading && entries.length === 0 && (
           <div style={styles.emptyContainer}>
-            <p style={styles.emptyText}>No pending entries to review</p>
+            <p style={styles.emptyText}>{t.noEntries}</p>
           </div>
         )}
         
@@ -289,29 +366,29 @@ function ReviewerQueuePageContent() {
             {sortedEntries.map((entry) => (
               <div key={entry.id} style={styles.entryCard}>
                 <div style={styles.entryHeader}>
-                  <h3 style={styles.entryTitle}>{getText(entry, 'title') || "Untitled"}</h3>
-                  <span style={styles.pendingBadge}>Pending Review</span>
+                  <h3 style={styles.entryTitle}>{getText(entry, 'title') || t.untitled}</h3>
+                  <span style={styles.pendingBadge}>{t.pendingBadge}</span>
                 </div>
                 
                 <p style={styles.entryDescription}>
-                  {getText(entry, 'description') || "No description"}
+                  {getText(entry, 'description') || t.noDescription}
                 </p>
                 
                 <div style={styles.entryMeta}>
                   <span style={styles.metaItem}>
-                    Contributor: {getText(entry, 'contributor') || "Unknown"}
+                    {t.contributorLabel} {getText(entry, 'contributor') || t.unknown}
                   </span>
                   <span style={styles.metaItem}>
-                    Submitted: {formatSubmissionDate(entry.created_at)}
+                    {t.submittedLabel} {formatSubmissionDate(entry.created_at, language)}
                   </span>
                   <span style={styles.metaItem}>
-                    ID: {entry.id.slice(0, 8)}...
+                    {t.idLabel} {entry.id.slice(0, 8)}...
                   </span>
                 </div>
                 
                 <div style={styles.entryActions}>
                   <Link href={`/entry/${entry.id}?lang=${language}`} style={styles.viewButton}>
-                    View Entry
+                    {t.viewEntry}
                   </Link>
                   
                   <button 
@@ -319,7 +396,7 @@ function ReviewerQueuePageContent() {
                     onClick={() => handleApprove(entry.id)}
                     disabled={processing[entry.id]}
                   >
-                    {processing[entry.id] ? "Processing..." : "Approve"}
+                    {processing[entry.id] ? t.processing : t.approve}
                   </button>
                   
                   <button 
@@ -327,7 +404,7 @@ function ReviewerQueuePageContent() {
                     onClick={() => handleReturnClick(entry.id)}
                     disabled={processing[entry.id]}
                   >
-                    {processing[entry.id] ? "Processing..." : "Return"}
+                    {processing[entry.id] ? t.processing : t.return}
                   </button>
                 </div>
               </div>
@@ -336,9 +413,7 @@ function ReviewerQueuePageContent() {
         )}
         
         <footer style={styles.footer}>
-          {language === "en"
-            ? "Archived Kites — Preserving stories and memories, one kite at a time."
-            : "បណ្ណសារខ្លែង — រក្សាទុករឿងរ៉ាវ និងការចងចាំរបស់យើង។"}
+          {t.footer}
         </footer>
 
         {/* Return Reason Modal */}
@@ -353,14 +428,14 @@ function ReviewerQueuePageContent() {
             }}
           >
             <div style={styles.modalContent}>
-              <h3 style={styles.modalTitle}>Return for Edits</h3>
+              <h3 style={styles.modalTitle}>{t.returnModalTitle}</h3>
               <p style={styles.modalText}>
-                Tell the contributor what needs to change. This note is saved with the entry.
+                {t.returnModalText}
               </p>
               <textarea
                 value={returnReason}
                 onChange={(e) => setReturnReason(e.target.value)}
-                placeholder="e.g. Please add the Khmer title and a clearer photo."
+                placeholder={t.returnPlaceholder}
                 style={styles.modalTextarea}
                 rows={4}
                 disabled={processing[returnEntryId]}
@@ -375,7 +450,7 @@ function ReviewerQueuePageContent() {
                   style={styles.modalCancelButton}
                   disabled={processing[returnEntryId]}
                 >
-                  Cancel
+                  {t.cancel}
                 </button>
                 <button
                   type="button"
@@ -383,7 +458,7 @@ function ReviewerQueuePageContent() {
                   style={styles.modalReturnButton}
                   disabled={processing[returnEntryId]}
                 >
-                  {processing[returnEntryId] ? "Returning..." : "Return Entry"}
+                  {processing[returnEntryId] ? t.returning : t.returnEntry}
                 </button>
               </div>
             </div>
@@ -528,14 +603,9 @@ const styles = {
 function ReviewerQueuePage() {
   return (
     <Suspense fallback={
-      <>
-        <Header />
-        <main style={{ width: "100%", margin: 0, padding: "40px 32px 80px", boxSizing: "border-box" }}>
-          <div style={{ textAlign: "center", padding: "40px 0", marginTop: 32 }}>
-            <p style={{ fontSize: 16, color: "#64748B", fontStyle: "italic" }}>Loading reviewer queue...</p>
-          </div>
-        </main>
-      </>
+      // Fallback renders before the language context is available, so it shows
+      // no text rather than an English-only string.
+      <Header />
     }>
       <ReviewerQueuePageContent />
     </Suspense>

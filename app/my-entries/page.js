@@ -25,6 +25,57 @@ const FILTER_OPTIONS = [
   { id: "returned", ...STATUS_LABELS.returned }
 ];
 
+// UI chrome for the my-entries page in both languages. Kept as a function so
+// the strings always reflect the language active at render time. User-entered
+// entry content is never translated here — only labels, buttons and messages.
+function myEntriesText(language) {
+  const en = language === "en";
+  return {
+    kicker: en ? "MY ENTRIES" : "ស្នាដៃខ្ញុំ",
+    title: en ? "My Entries" : "ការដាក់ស្នើរបស់ខ្ញុំ",
+    addNew: en ? "Add New Entry" : "បន្ថែមធាតុថ្មី",
+    loading: en ? "Loading..." : "កំពុងផ្ទុក...",
+    loadingEntries: en ? "Loading your entries..." : "កំពុងផ្ទុកធាតុរបស់អ្នក...",
+    loadFailed: en ? "Failed to load entries." : "មិនអាចផ្ទុកធាតុបានទេ។",
+    empty: en
+      ? "You haven't submitted any entries yet."
+      : "អ្នកមិនទាន់បានដាក់ស្នើធាតុណាមួយនៅឡើយទេ។",
+    submitFirst: en ? "Submit Your First Entry" : "ដាក់ស្នើធាតុដំបូងរបស់អ្នក",
+    entriesCount: en ? "entries: " : "ធាតុ៖ ",
+    filterEmpty: en
+      ? "No entries match this filter."
+      : "គ្មានធាតុណាមួយត្រូវនឹងតម្រងនេះទេ។",
+    // Fallback labels for missing entry content (these are UI, not user data).
+    untitled: en ? "Untitled" : "គ្មានចំណងជើង",
+    noDescription: en ? "No description available" : "គ្មានការពិពណ៌នាទេ",
+    unknown: en ? "Unknown" : "មិនស្គាល់",
+    contributorLabel: en ? "Contributor:" : "អ្នកចែករំលែក៖",
+    submittedLabel: en ? "Submitted:" : "បានដាក់ស្នើ៖",
+    reviewerNote: en ? "Reviewer Note" : "កំណត់សម្គាល់អ្នកពិនិត្យ",
+    viewEntry: en ? "View Entry" : "មើលធាតុ",
+    edit: en ? "Edit" : "កែសម្រួល",
+    delete: en ? "Delete" : "លុប",
+    loginRequired: en
+      ? "Please log in to view your entries"
+      : "សូមចូលដើម្បីមើលការដាក់ស្នើរបស់អ្នក",
+    logIn: en ? "Log in" : "ចូល",
+    newHere: en ? "New here? " : "ថ្មីនៅទីនេះ? ",
+    createAccount: en ? "Create an account" : "បង្កើតគណនី",
+    deleteModalTitle: en ? "Delete Entry" : "លុបធាតុ",
+    deleteModalText: en
+      ? "Are you sure you want to delete this entry? This cannot be undone."
+      : "តើអ្នកប្រាកដជាចង់លុបធាតុនេះទេ? សកម្មភាពនេះមិនអាចត្រឡប់វិញបានទេ។",
+    deleting: en ? "Deleting..." : "កំពុងលុប...",
+    cancel: en ? "Cancel" : "បោះបង់",
+    deleteFailed: en
+      ? "Failed to delete entry. Please try again."
+      : "មិនអាចលុបធាតុបានទេ។ សូមព្យាយាមម្តងទៀត។",
+    footer: en
+      ? "Archived Kites — Preserving stories and memories, one kite at a time."
+      : "បណ្ណសារខ្លែង — រក្សាទុករឿងរ៉ាវ និងការចងចាំរបស់យើង។",
+  };
+}
+
 const styles = {
   wrap: {
     width: "100%",
@@ -175,6 +226,10 @@ function MyEntriesContent() {
   // known value so an unexpected context value cannot leave blank labels.
   const activeLanguage = language === "km" ? "km" : "en";
 
+  // UI chrome for the active language, read on every render so the page
+  // re-translates the instant the header toggle flips.
+  const t = myEntriesText(activeLanguage);
+
   const getText = (entry, field) => {
     if (!entry) return "";
     return pickEntryText(entry, field, activeLanguage).text;
@@ -286,11 +341,17 @@ function MyEntriesContent() {
       const target = entries.find((e) => e.id === entryId);
 
       // Delete the entry row (RLS ensures only the owner can delete it).
-      const { error: deleteRowError } = await supabase
+      // `.select()` returns the deleted rows; if it comes back empty, RLS
+      // blocked the delete and we must not report success.
+      const { data: deletedRows, error: deleteRowError } = await supabase
         .from("entries")
         .delete()
-        .eq("id", entryId);
+        .eq("id", entryId)
+        .select();
       if (deleteRowError) throw deleteRowError;
+      if (!deletedRows || deletedRows.length === 0) {
+        throw new Error("Delete affected no rows (blocked by RLS or not the owner).");
+      }
 
       // Best-effort: remove the entry's photo from storage. A failure here
       // must not block the delete, since the row is already gone.
@@ -332,9 +393,7 @@ function MyEntriesContent() {
         <Header />
         <main style={styles.wrap}>
           <div style={styles.loadingContainer}>
-            <p style={styles.loadingText}>
-              {activeLanguage === "en" ? "Loading..." : "កំពុងផ្ទុក..."}
-            </p>
+            <p style={styles.loadingText}>{t.loading}</p>
           </div>
         </main>
       </>
@@ -346,23 +405,17 @@ function MyEntriesContent() {
       <>
         <Header />
         <main style={styles.wrap}>
-          <p style={styles.kicker}>
-            {activeLanguage === "en" ? "MY ENTRIES" : "ស្នាដៃខ្ញុំ"}
-          </p>
-          <h1 style={styles.title}>{activeLanguage === "en" ? "My Entries" : "ការដាក់ស្នើរបស់ខ្ញុំ"}</h1>
+          <p style={styles.kicker}>{t.kicker}</p>
+          <h1 style={styles.title}>{t.title}</h1>
           <div style={styles.card}>
-            <p style={styles.loginMessage}>
-              {activeLanguage === "en"
-                ? "Please log in to view your entries"
-                : "សូមចូលដើម្បីមើលការដាក់ស្នើរបស់អ្នក"}
-            </p>
+            <p style={styles.loginMessage}>{t.loginRequired}</p>
             <Link href="/login" style={styles.buttonLink}>
-              {activeLanguage === "en" ? "Log in" : "ចូល"}
+              {t.logIn}
             </Link>
             <p style={styles.helperText}>
-              {activeLanguage === "en" ? "New here? " : "ថ្មីនៅទីនេះ? "}
+              {t.newHere}
               <Link href="/signup" style={styles.link}>
-                {activeLanguage === "en" ? "Create an account" : "បង្កើតគណនី"}
+                {t.createAccount}
               </Link>
             </p>
           </div>
@@ -375,43 +428,33 @@ function MyEntriesContent() {
     <>
       <Header />
       <main style={styles.wrap}>
-        <p style={styles.kicker}>
-          {activeLanguage === "en" ? "MY ENTRIES" : "ស្នាដៃខ្ញុំ"}
-        </p>
+        <p style={styles.kicker}>{t.kicker}</p>
         <div style={styles.titleRow}>
-          <h1 style={styles.title}>{activeLanguage === "en" ? "My Entries" : "ការដាក់ស្នើរបស់ខ្ញុំ"}</h1>
+          <h1 style={styles.title}>{t.title}</h1>
           <Link href={`/contribute?lang=${activeLanguage}`} style={styles.addButton}>
-            {activeLanguage === "en" ? "Add New Entry" : "បន្ថែមធាតុថ្មី"}
+            {t.addNew}
           </Link>
         </div>
 
         {loading ? (
           <div style={styles.loadingContainer}>
-            <p style={styles.loadingText}>
-              {activeLanguage === "en" ? "Loading your entries..." : "កំពុងផ្ទុកធាតុរបស់អ្នក..."}
-            </p>
+            <p style={styles.loadingText}>{t.loadingEntries}</p>
           </div>
         ) : error ? (
           <div style={styles.errorContainer}>
-            <p style={styles.errorText}>
-              {activeLanguage === "en" ? "Failed to load entries." : "មិនអាចផ្ទុកធាតុបានទេ។"}
-            </p>
+            <p style={styles.errorText}>{t.loadFailed}</p>
           </div>
         ) : entries.length === 0 ? (
           <div style={styles.emptyContainer}>
-            <p style={styles.emptyText}>
-              {activeLanguage === "en"
-                ? "You haven't submitted any entries yet."
-                : "អ្នកមិនទាន់បានដាក់ស្នើធាតុណាមួយនៅឡើយទេ។"}
-            </p>
+            <p style={styles.emptyText}>{t.empty}</p>
             <Link href="/contribute" style={styles.buttonLink}>
-              {activeLanguage === "en" ? "Submit Your First Entry" : "ដាក់ស្នើធាតុដំបូងរបស់អ្នក"}
+              {t.submitFirst}
             </Link>
           </div>
         ) : (
           <>
             <p style={styles.count}>
-              {activeLanguage === "en" ? "entries: " : "ធាតុ៖ "}
+              {t.entriesCount}
               {entries.length}
             </p>
             <div style={styles.filterBar}>
@@ -429,42 +472,40 @@ function MyEntriesContent() {
             <div style={styles.entriesList}>
               {filteredEntries.length === 0 ? (
                 <p style={styles.filterEmptyText}>
-                  {activeLanguage === "en"
-                    ? "No entries match this filter."
-                    : "គ្មានធាតុណាមួយត្រូវនឹងតម្រងនេះទេ។"}
+                  {t.filterEmpty}
                 </p>
               ) : (
                 filteredEntries.map((entry) => (
                   <div key={entry.id} style={styles.entryCard}>
                     <div style={styles.entryHeader}>
-                      <h3 style={styles.entryTitle}>{getText(entry, 'title') || "Untitled"}</h3>
+                      <h3 style={styles.entryTitle}>{getText(entry, 'title') || t.untitled}</h3>
                       <span style={getStatusBadgeStyle(entry.status || 'pending')}>{getStatusText(entry.status || 'pending')}</span>
                     </div>
                     {fallbackHint(entry, 'title') && (
                       <p style={styles.fallbackHint}>{fallbackHint(entry, 'title')}</p>
                     )}
                     <p style={styles.entryDescription}>
-                      {getText(entry, 'description')?.substring(0, 150) || "No description available"}...
+                      {getText(entry, 'description')?.substring(0, 150) || t.noDescription}...
                     </p>
                     <div style={styles.entryMeta}>
-                      <span style={styles.metaItem}>Contributor: {getText(entry, 'contributor') || "Unknown"}</span>
+                      <span style={styles.metaItem}>{t.contributorLabel} {getText(entry, 'contributor') || t.unknown}</span>
                       {fallbackHint(entry, 'contributor') && (
                         <span style={styles.fallbackHintInline}>({fallbackHint(entry, 'contributor')})</span>
                       )}
-                      <span style={styles.metaItem}>Submitted: {formatSubmissionDate(entry.created_at)}</span>
+                      <span style={styles.metaItem}>{t.submittedLabel} {formatSubmissionDate(entry.created_at, activeLanguage)}</span>
                     </div>
                     {entry.review_note && entry.review_note.trim() && (
                       <div style={styles.reviewNoteBox}>
-                        <div style={styles.reviewNoteLabel}>Reviewer Note</div>
+                        <div style={styles.reviewNoteLabel}>{t.reviewerNote}</div>
                         <div style={styles.reviewNoteText}>{entry.review_note}</div>
                       </div>
                     )}
                     <div style={styles.entryActions}>
                       <Link href={`/entry/${entry.id}?lang=${activeLanguage}`} style={styles.viewButton}>
-                        View Entry
+                        {t.viewEntry}
                       </Link>
                       <Link href={`/entry/${entry.id}/edit?lang=${activeLanguage}`} style={styles.editButton}>
-                        Edit
+                        {t.edit}
                       </Link>
                       <button
                         type="button"
@@ -472,7 +513,7 @@ function MyEntriesContent() {
                         style={styles.deleteButton}
                         disabled={deleting}
                       >
-                        Delete
+                        {t.delete}
                       </button>
                     </div>
                 </div>
@@ -482,9 +523,7 @@ function MyEntriesContent() {
         )}
         
         <footer style={styles.footer}>
-          {language === "en"
-            ? "Archived Kites — Preserving stories and memories, one kite at a time."
-            : "បណ្ណសារខ្លែង — រក្សាទុករឿងរ៉ាវ និងការចងចាំរបស់យើង។"}
+          {t.footer}
         </footer>
 
         {/* Delete confirmation modal */}
@@ -499,12 +538,12 @@ function MyEntriesContent() {
             }}
           >
             <div style={styles.modalContent}>
-              <h3 style={styles.modalTitle}>Delete Entry</h3>
+              <h3 style={styles.modalTitle}>{t.deleteModalTitle}</h3>
               <p style={styles.modalText}>
-                Are you sure you want to delete this entry? This cannot be undone.
+                {t.deleteModalText}
               </p>
               {deleteError && (
-                <p style={styles.modalErrorText}>{deleteError}</p>
+                <p style={styles.modalErrorText}>{t.deleteFailed}</p>
               )}
               <div style={styles.modalButtons}>
                 <button
@@ -513,7 +552,7 @@ function MyEntriesContent() {
                   style={styles.modalCancelButton}
                   disabled={deleting}
                 >
-                  Cancel
+                  {t.cancel}
                 </button>
                 <button
                   type="button"
@@ -521,7 +560,7 @@ function MyEntriesContent() {
                   style={styles.modalDeleteButton}
                   disabled={deleting}
                 >
-                  {deleting ? "Deleting..." : "Delete"}
+                  {deleting ? t.deleting : t.delete}
                 </button>
               </div>
             </div>
@@ -535,9 +574,9 @@ export default function MyEntriesPage() {
   return (
     <Suspense
       fallback={
-        <div style={{ padding: 40, textAlign: "center" }}>
-          Loading...
-        </div>
+        // Fallback renders before the language context is available, so it
+        // shows no text rather than an English-only string.
+        <div style={{ padding: 40, textAlign: "center" }} aria-busy="true" />
       }
     >
       <MyEntriesContent />

@@ -43,6 +43,87 @@ function fieldLabel(field, language) {
   return labels[language] || labels.en;
 }
 
+// UI chrome for the edit page in both languages. Kept as a function so the
+// strings always reflect the language active at render time. User-entered
+// entry content is never translated here — only labels, buttons and messages.
+function editText(language) {
+  const en = language === "en";
+  return {
+    kicker: en ? "KHMER LIVING ARCHIVE" : "ប័ណ្ណសាររស់រវើកខ្មែរ",
+    title: en ? "Edit Entry" : "កែសម្រួលធាតុ",
+    subtitle: (title) => (en ? `Editing "${title}"` : `កំពុងកែសម្រួល "${title}"`),
+    backToArchive: en ? "Back to the archive" : "ត្រឡប់ទៅប័ណ្ណសារ",
+    characters: en ? "characters" : "តួអក្សរ",
+    photoLabel: en ? "Photo" : "រូបថត",
+    currentPhoto: en ? "Current photo:" : "រូបថតបច្ចុប្បន្ន៖",
+    viewExistingPhoto: en ? "View existing photo" : "មើលរូបថតបច្ចុប្បន្ន",
+    removePhoto: en ? "Remove photo" : "លុបរូបថត",
+    undoRemove: en ? "Undo" : "មិនលុបវិញ",
+    removeWillRemove: en
+      ? "Photo will be removed. Please upload a new photo below."
+      : "រូបថតនឹងត្រូវលុប។ សូមផ្ទុករូបថតថ្មីខាងក្រោម។",
+    keepOrReplace: en
+      ? "Keep current photo or upload a new one."
+      : "រក្សារូបថតបច្ចុប្បន្ន ឬផ្ទុករូបថ្មី។",
+    cancel: en ? "Cancel" : "បោះបង់",
+    saveChanges: en ? "Save Changes" : "រក្សាទុកការផ្លាស់ប្តូរ",
+    saving: en ? "Saving..." : "កំពុងរក្សាទុក...",
+    loading: en ? "Loading..." : "កំពុងផ្ទុក...",
+    removePhotoTitle: en ? "Remove Photo" : "លុបរូបថត",
+    removePhotoConfirm: en
+      ? "Are you sure you want to remove the current photo from this entry? You must upload a new photo to replace it."
+      : "តើអ្នកប្រាកដជាចង់លុបរូបថតបច្ចុប្បន្នចេញពីធាតុនេះទេ? អ្នកត្រូវផ្ទុករូបថតថ្មីដើម្បីជំនួសវា។",
+    noPermission: en
+      ? "You don't have permission to edit this entry."
+      : "អ្នកមិនមានការអនុញ្ញាតកែសម្រួលធាតុនេះទេ។",
+    loadFailed: en
+      ? "We couldn't load this entry. Please try again."
+      : "យើងមិនអាចផ្ទុកធាតុនេះបានទេ។ សូមព្យាយាមម្តងទៀត។",
+    submitFailed: en
+      ? "Failed to update entry. Please try again."
+      : "មិនអាចធ្វើបច្ចុប្បន្នភាពធាតុបានទេ។ សូមព្យាយាមម្តងទៀត។",
+    sessionExpired: en
+      ? "Your session has expired. Please log in again."
+      : "វគ្គរបស់អ្នកបានផុតកំណត់។ សូមចូលម្តងទៀត។",
+    // Validation messages. `label` is the already-translated field label.
+    titleRequired: (label) => (en ? `${label} is required.` : `${label} ត្រូវតែបំពេញ។`),
+    titleTooLong: (label, max, current) =>
+      en
+        ? `${label} must be ${max} characters or fewer (currently ${current}).`
+        : `${label} ត្រូវតែមាន ${max} តួអក្សរ ឬតិចជាង (បច្ចុប្បន្ន ${current})។`,
+    titleOnlySymbols: (label) =>
+      en
+        ? `${label} cannot be only spaces or symbols.`
+        : `${label} មិនអាចមានតែចន្លោះ ឬសញ្ញាបានទេ។`,
+    descriptionRequired: (label) =>
+      en ? `${label} is required.` : `${label} ត្រូវតែបំពេញ។`,
+    descriptionTooLong: (label, max, current) =>
+      en
+        ? `${label} must be ${max} characters or fewer (currently ${current}).`
+        : `${label} ត្រូវតែមាន ${max} តួអក្សរ ឬតិចជាង (បច្ចុប្បន្ន ${current})។`,
+    optionalTooLong: (label, max, current) =>
+      en
+        ? `${label} must be ${max} characters or fewer (currently ${current}).`
+        : `${label} ត្រូវតែមាន ${max} តួអក្សរ ឬតិចជាង (បច្ចុប្បន្ន ${current})។`,
+    uploadNewPhotoRequired: en
+      ? "Please upload a new photo. Every entry must have at least one photo."
+      : "សូមផ្ទុករូបថតថ្មី។ ធាតុនីមួយៗត្រូវតែមានរូបថតយ៉ាងតិចមួយ។",
+    uploadPhotoRequired: en
+      ? "Please upload a photo. Every entry must have at least one photo."
+      : "សូមផ្ទុករូបថត។ ធាតុនីមួយៗត្រូវតែមានរូបថតយ៉ាងតិចមួយ។",
+    // Photo-type/size messages mirror file-validation.js but in the active
+    // language; the validator's own English text is only a fallback.
+    photoSize: (sizeMb) =>
+      en
+        ? `Photo must be 5 MB or smaller. Current size: ${sizeMb} MB.`
+        : `រូបថតត្រូវតែមានទំហំ 5 MB ឬតូចជាង។ ទំហំបច្ចុប្បន្ន៖ ${sizeMb} MB។`,
+    photoType: en
+      ? "Photo must be a JPG, PNG, or WebP image. Valid extensions: .jpg, .jpeg, .png, .webp"
+      : "រូបថតត្រូវតែជាទម្រង់ JPG, PNG, ឬ WebP។ ផ្នែកបន្ថែមត្រឹមត្រូវ៖ .jpg, .jpeg, .png, .webp",
+    photoChoose: en ? "Please choose a photo." : "សូមជ្រើសរើសរូបថតមួយ។",
+  };
+}
+
 // The four text fields, each in both languages.
 const FIELD_BASES = ["title", "contributor", "places", "description"];
 
@@ -57,12 +138,16 @@ function isRequiredField(field, language) {
   return field === `title_${language}` || field === `description_${language}`;
 }
 
-// The form keeps a fixed field order (English first, then Khmer). Only the
-// `*` badge and the required-field validation follow the active language.
-const FIELD_ORDER = FIELD_BASES.flatMap((base) => [
-  `${base}_en`,
-  `${base}_km`,
-]);
+// The form shows the active language's fields first, then the other language's.
+// The active language's title and description are the required ones (see
+// isRequiredField), so putting them first means the user fills what is required
+// before the optional translation — in English mode English comes first, in
+// Khmer mode Khmer comes first. This keeps the required fields visible on top.
+function buildFieldOrder(language) {
+  const first = language === "km" ? "km" : "en";
+  const second = first === "en" ? "km" : "en";
+  return FIELD_BASES.flatMap((base) => [`${base}_${first}`, `${base}_${second}`]);
+}
 
 // Example placeholder text for each field, in both languages.
 const PLACEHOLDERS = {
@@ -144,8 +229,23 @@ function trimValues(values) {
   return trimmed;
 }
 
+// Build a translated photo error from a file-validation result. The validator
+// returns an English message plus a stable `code`; we re-state the same problem
+// in the active language and only fall back to the validator's text if the code
+// is one we do not recognise.
+function photoErrorMessage(invalid, t) {
+  if (!invalid) return "";
+  if (invalid.code === "size") {
+    return t.photoSize(((invalid.size || 0) / (1024 * 1024)).toFixed(2));
+  }
+  if (invalid.code === "type") return t.photoType;
+  if (invalid.code === "choose") return t.photoChoose;
+  return invalid.error || "";
+}
+
 function validate(values, photos, language = "en", removeCurrentPhoto = false, existingPhotoUrl = "") {
   const errors = {};
+  const t = editText(language);
 
   // The active language's title and description are required; the other
   // language's fields are optional (length-checked only, below).
@@ -156,18 +256,26 @@ function validate(values, photos, language = "en", removeCurrentPhoto = false, e
 
   // Title (active language): required, max chars, not blank spaces or symbols only.
   if (!values[titleField]) {
-    errors[titleField] = `${titleLabel} is required.`;
+    errors[titleField] = t.titleRequired(titleLabel);
   } else if (charCount(values[titleField]) > MAX_LENGTHS[titleField]) {
-    errors[titleField] = `${titleLabel} must be ${MAX_LENGTHS[titleField]} characters or fewer (currently ${charCount(values[titleField])}).`;
+    errors[titleField] = t.titleTooLong(
+      titleLabel,
+      MAX_LENGTHS[titleField],
+      charCount(values[titleField])
+    );
   } else if (!/[\p{L}\p{N}]/u.test(values[titleField])) {
-    errors[titleField] = `${titleLabel} cannot be only spaces or symbols.`;
+    errors[titleField] = t.titleOnlySymbols(titleLabel);
   }
 
   // Description (active language): required, max chars, cannot be blank spaces.
   if (!values[descriptionField]) {
-    errors[descriptionField] = `${descriptionLabel} is required.`;
+    errors[descriptionField] = t.descriptionRequired(descriptionLabel);
   } else if (charCount(values[descriptionField]) > MAX_LENGTHS[descriptionField]) {
-    errors[descriptionField] = `${descriptionLabel} must be ${MAX_LENGTHS[descriptionField]} characters or fewer (currently ${charCount(values[descriptionField])}).`;
+    errors[descriptionField] = t.descriptionTooLong(
+      descriptionLabel,
+      MAX_LENGTHS[descriptionField],
+      charCount(values[descriptionField])
+    );
   }
 
   // All remaining fields are optional: length checks only. This includes the
@@ -177,7 +285,11 @@ function validate(values, photos, language = "en", removeCurrentPhoto = false, e
   );
   optionalFields.forEach((field) => {
     if (values[field] && charCount(values[field]) > MAX_LENGTHS[field]) {
-      errors[field] = `${fieldLabel(field, language)} must be ${MAX_LENGTHS[field]} characters or fewer (currently ${charCount(values[field])}).`;
+      errors[field] = t.optionalTooLong(
+        fieldLabel(field, language),
+        MAX_LENGTHS[field],
+        charCount(values[field])
+      );
     }
   });
 
@@ -191,14 +303,14 @@ function validate(values, photos, language = "en", removeCurrentPhoto = false, e
     // User is removing the current photo
     // If removing current photo, a new photo MUST be uploaded
     if (!hasNewPhotos) {
-      errors.photo = "Please upload a new photo. Every entry must have at least one photo.";
+      errors.photo = t.uploadNewPhotoRequired;
     } else {
       // Validate the new photos being uploaded
       const invalid = photos
         .map((file) => validatePhotoFile(file))
         .find((validation) => !validation.isValid);
       if (invalid) {
-        errors.photo = invalid.error;
+        errors.photo = photoErrorMessage(invalid, t);
       }
     }
   } else if (hasNewPhotos) {
@@ -207,12 +319,12 @@ function validate(values, photos, language = "en", removeCurrentPhoto = false, e
       .map((file) => validatePhotoFile(file))
       .find((validation) => !validation.isValid);
     if (invalid) {
-      errors.photo = invalid.error;
+      errors.photo = photoErrorMessage(invalid, t);
     }
   } else if (!existingPhotoUrl) {
     // No existing photo, no new photo uploaded, not removing (nothing to remove)
     // Entry would have no photo - require a photo
-    errors.photo = "Please upload a photo. Every entry must have at least one photo.";
+    errors.photo = t.uploadPhotoRequired;
   }
   // else: keeping existing photo (existingPhotoUrl exists) - no validation needed
 
@@ -224,9 +336,13 @@ function EditContent() {
   const { language } = useLanguage();
   const router = useRouter();
 
-  // Fixed field order (English first, then Khmer); the required `*` badge
-  // still follows the active language via isRequiredField.
-  const orderedFields = FIELD_ORDER;
+  // Active language's fields first (so the required ones are at the top), then
+  // the other language's. The `*` badge follows isRequiredField.
+  const orderedFields = buildFieldOrder(language);
+
+  // UI chrome for the active language, read on every render so the page
+  // re-translates the instant the header toggle flips.
+  const t = editText(language);
 
   const [supabase] = useState(() => createClient());
   const [currentUser, setCurrentUser] = useState(null);
@@ -281,7 +397,7 @@ function EditContent() {
         
         // Check ownership
         if (!currentUser || data.owner !== currentUser.id) {
-          setError("You don't have permission to edit this entry.");
+          setError(editText(language).noPermission);
           setLoading(false);
           return;
         }
@@ -307,7 +423,7 @@ function EditContent() {
         // The photo state is only for new uploads
       } catch (err) {
         console.error("Error fetching entry:", err);
-        if (active) setError("We couldn't load this entry. Please try again.");
+        if (active) setError(editText(language).loadFailed);
       } finally {
         if (active) setLoading(false);
       }
@@ -366,7 +482,7 @@ function EditContent() {
       // Get current user to ensure we have the right owner
       const { data: { user: currentUser } } = await supabase.auth.getUser();
       if (!currentUser) {
-        throw new Error("Your session has expired. Please log in again.");
+        throw new Error(editText(language).sessionExpired);
       }
       
       // Get existing photo URL and prepare for possible deletion
@@ -468,8 +584,10 @@ function EditContent() {
       // Redirect back to the entry page
       router.push(`/entry/${id}${language && language !== "en" ? `?lang=${language}` : ""}`);
     } catch (err) {
+      // Log the real error, but only show a translated, friendly message so a
+      // raw Supabase/English string never leaks into the Khmer UI.
       console.error("Error updating entry:", err);
-      setSubmitError(err.message || "Failed to update entry. Please try again.");
+      setSubmitError(editText(language).submitFailed);
       setSubmitting(false);
     }
   };
@@ -494,7 +612,7 @@ function EditContent() {
         <Header />
         <main style={styles.wrap}>
           <div style={styles.card}>
-            <p style={styles.loadingText}>Loading...</p>
+            <p style={styles.loadingText}>{t.loading}</p>
           </div>
         </main>
       </>
@@ -507,15 +625,13 @@ function EditContent() {
         <Header />
         <main style={styles.wrap}>
           <div style={styles.header}>
-            <p style={styles.kicker}>
-              {language === "en" ? "KHMER LIVING ARCHIVE" : "ប័ណ្ណសាររស់រវើកខ្មែរ"}
-            </p>
-            <h1 style={styles.title}>Edit Entry</h1>
+            <p style={styles.kicker}>{t.kicker}</p>
+            <h1 style={styles.title}>{t.title}</h1>
           </div>
           <div style={styles.card}>
             <p style={styles.errorText}>{error}</p>
             <Link href="/browse" style={styles.buttonLink}>
-              Back to the archive
+              {t.backToArchive}
             </Link>
           </div>
         </main>
@@ -531,13 +647,11 @@ function EditContent() {
       <Header />
       <main style={styles.wrap}>
         <div style={styles.header}>
-          <p style={styles.kicker}>
-            {language === "en" ? "KHMER LIVING ARCHIVE" : "ប័ណ្ណសាររស់រវើកខ្មែរ"}
-          </p>
-          <h1 style={styles.title}>Edit Entry</h1>
+          <p style={styles.kicker}>{t.kicker}</p>
+          <h1 style={styles.title}>{t.title}</h1>
           {entry && (
             <p style={styles.subtitle}>
-              Editing "{entry.title_en || "Untitled Entry"}"
+              {t.subtitle(entry.title_en || entry.title_km || "—")}
             </p>
           )}
         </div>
@@ -592,7 +706,7 @@ function EditContent() {
                   ) : (
                     <span style={styles.counter}>
                       {charCount(values[field])}/{MAX_LENGTHS[field]}{" "}
-                      characters
+                      {t.characters}
                     </span>
                   )}
                 </div>
@@ -601,14 +715,14 @@ function EditContent() {
 
             <div style={styles.field}>
               <label htmlFor="photo" style={styles.label}>
-                Photo <span style={styles.required}>*</span>
+                {t.photoLabel} <span style={styles.required}>*</span>
               </label>
               {existingPhotoUrl && (
                 <div style={{ marginBottom: 12 }}>
                   <p style={{ fontSize: 14, color: "#64748B", marginBottom: 8 }}>
-                    Current photo:{" "}
+                    {t.currentPhoto}{" "}
                     <a href={existingPhotoUrl} target="_blank" rel="noopener noreferrer" style={{ color: "#1E40AF" }}>
-                      View existing photo
+                      {t.viewExistingPhoto}
                     </a>
                   </p>
                   <div style={{ display: "flex", gap: 8, marginBottom: 8 }}>
@@ -619,7 +733,7 @@ function EditContent() {
                           // If already in removal mode, clicking should keep the photo
                           setRemoveCurrentPhoto(false);
                           // Clear any photo validation error since we're keeping the photo
-                          if (errors.photo && errors.photo.includes("upload a new photo")) {
+                          if (errors.photo && errors.photo === t.uploadNewPhotoRequired) {
                             setErrors(prev => ({ ...prev, photo: "" }));
                           }
                         } else {
@@ -638,13 +752,13 @@ function EditContent() {
                         cursor: "pointer"
                       }}
                     >
-                      {removeCurrentPhoto ? "Undo removal" : "Remove photo"}
+                      {removeCurrentPhoto ? t.undoRemove : t.removePhoto}
                     </button>
                   </div>
                   <p style={{ fontSize: 13, color: "#94A3B8" }}>
                     {removeCurrentPhoto 
-                      ? "Upload a new photo below to replace it (required)" 
-                      : "Upload a new photo below to replace it (optional)"}
+                      ? t.removeWillRemove 
+                      : t.keepOrReplace}
                   </p>
                 </div>
               )}
@@ -657,11 +771,11 @@ function EditContent() {
                 <p style={{ ...styles.fieldError, marginTop: 8 }}>{errors.photo}</p>
               ) : removeCurrentPhoto ? (
                 <span style={{ ...styles.counter, marginTop: 8 }}>
-                  Photo will be removed. Please upload a new photo below.
+                  {t.removeWillRemove}
                 </span>
               ) : existingPhotoUrl && photos.length === 0 ? (
                 <span style={{ ...styles.counter, marginTop: 8 }}>
-                  Keep current photo or upload a new one (JPG, PNG, or WebP, max 5 MB)
+                  {t.keepOrReplace}
                 </span>
               ) : null}
             </div>
@@ -673,7 +787,7 @@ function EditContent() {
                 style={styles.cancelButton}
                 disabled={submitting}
               >
-                Cancel
+                {t.cancel}
               </button>
               <button
                 type="submit"
@@ -683,7 +797,7 @@ function EditContent() {
                 }}
                 disabled={submitting}
               >
-                {submitting ? "Saving..." : "Save Changes"}
+                {submitting ? t.saving : t.saveChanges}
               </button>
             </div>
           </form>
@@ -707,10 +821,9 @@ function EditContent() {
               }}
             >
               <div style={styles.modalContent}>
-                <h3 style={styles.modalTitle}>Remove Photo</h3>
+                <h3 style={styles.modalTitle}>{t.removePhotoTitle}</h3>
                 <p style={styles.modalText}>
-                  Are you sure you want to remove the current photo from this entry? 
-                  You must upload a new photo to replace it.
+                  {t.removePhotoConfirm} 
                 </p>
                 <div style={styles.modalButtons}>
                   <button
@@ -718,14 +831,14 @@ function EditContent() {
                     onClick={() => setShowPhotoRemoveConfirm(false)}
                     style={styles.modalCancelButton}
                   >
-                    Cancel
+                    {t.cancel}
                   </button>
                   <button
                     type="button"
                     onClick={handlePhotoRemoveConfirm}
                     style={styles.modalConfirmButton}
                   >
-                    Remove Photo
+                    {t.removePhotoTitle}
                   </button>
                 </div>
               </div>
@@ -740,9 +853,9 @@ export default function EditPage() {
   return (
     <Suspense
       fallback={
-        <div style={{ padding: 40, textAlign: "center" }}>
-          Loading...
-        </div>
+        // Fallback renders before the language context is available, so it
+        // shows no text rather than an English-only string.
+        <div style={{ padding: 40, textAlign: "center" }} aria-busy="true" />
       }
     >
       <EditContent />

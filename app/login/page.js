@@ -144,9 +144,9 @@ function LoginContent() {
 export default function LoginPage() {
   return (
     <Suspense fallback={
-      <div style={{ padding: 40, textAlign: "center" }}>
-        Loading...
-      </div>
+      // Fallback renders before the language context is available, so it shows
+      // no text rather than an English-only string.
+      <div style={{ padding: 40, textAlign: "center" }} aria-busy="true" />
     }>
       <LoginContent />
     </Suspense>

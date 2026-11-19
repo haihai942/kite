@@ -182,7 +182,13 @@ function HomeContent() {
 
 export default function Home() {
   return (
-    <Suspense fallback={<div style={{ padding: 40, textAlign: "center" }}>Loading...</div>}>
+    <Suspense
+      fallback={
+        // Fallback renders before the language context is available, so it
+        // shows no text rather than an English-only string.
+        <div style={{ padding: 40, textAlign: "center" }} aria-busy="true" />
+      }
+    >
       <HomeContent />
     </Suspense>
   );

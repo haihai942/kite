@@ -77,12 +77,17 @@ function isRequiredField(field, language) {
   return field === `title_${language}` || field === `description_${language}`;
 }
 
-// The form keeps a fixed field order (English first, then Khmer). Only the
-// `*` badge and the required-field validation follow the active language.
-const FIELD_ORDER = FIELD_BASES.flatMap((base) => [
-  `${base}_en`,
-  `${base}_km`,
-]);
+// The form shows the active language's fields first, then the other language's.
+// The active language's title and description are the required ones (see
+// isRequiredField), so putting them first means the user fills what is required
+// before the optional translation — in English mode English comes first, in
+// Khmer mode Khmer comes first. This is what makes Khmer mode usable: without
+// it the required Khmer fields sit at the bottom and get skipped.
+function buildFieldOrder(language) {
+  const first = language === "km" ? "km" : "en";
+  const second = first === "en" ? "km" : "en";
+  return FIELD_BASES.flatMap((base) => [`${base}_${first}`, `${base}_${second}`]);
+}
 
 // Example placeholder text for each field, in both languages.
 const PLACEHOLDERS = {
@@ -180,11 +185,33 @@ function validate(values, photos, language = "en") {
       .map((file) => validatePhotoFile(file))
       .find((validation) => !validation.isValid);
     if (invalid) {
-      errors.photo = invalid.error;
+      errors.photo = photoErrorMessage(invalid, en);
     }
   }
 
   return errors;
+}
+
+// Translate a file-validation result into the active language. The validator
+// returns an English message plus a stable `code`; we re-state the problem in
+// Khmer when needed and fall back to the validator's text otherwise.
+function photoErrorMessage(invalid, en) {
+  if (!invalid) return "";
+  if (invalid.code === "size") {
+    const sizeMb = ((invalid.size || 0) / (1024 * 1024)).toFixed(2);
+    return en
+      ? `Photo must be 5 MB or smaller. Current size: ${sizeMb} MB.`
+      : `រូបថតត្រូវតែមានទំហំ 5 MB ឬតូចជាង។ ទំហំបច្ចុប្បន្ន៖ ${sizeMb} MB។`;
+  }
+  if (invalid.code === "type") {
+    return en
+      ? "Photo must be a JPG, PNG, or WebP image. Valid extensions: .jpg, .jpeg, .png, .webp"
+      : "រូបថតត្រូវតែជាទម្រង់ JPG, PNG, ឬ WebP។ ផ្នែកបន្ថែមត្រឹមត្រូវ៖ .jpg, .jpeg, .png, .webp";
+  }
+  if (invalid.code === "choose") {
+    return en ? "Please choose a photo." : "សូមជ្រើសរើសរូបថតមួយ។";
+  }
+  return invalid.error || "";
 }
 
 function ContributeContent() {
@@ -194,9 +221,9 @@ function ContributeContent() {
   const [user, setUser] = useState(null);
   const [authLoading, setAuthLoading] = useState(true);
 
-  // Fixed field order (English first, then Khmer); the required `*` badge
-  // still follows the active language via isRequiredField.
-  const orderedFields = FIELD_ORDER;
+  // Active language's fields first (so the required ones are at the top), then
+  // the other language's. The `*` badge follows isRequiredField.
+  const orderedFields = buildFieldOrder(language);
 
   const [values, setValues] = useState(EMPTY_VALUES);
   const [photos, setPhotos] = useState([]);
@@ -251,7 +278,17 @@ function ContributeContent() {
     const trimmed = trimValues(values);
     const nextErrors = validate(trimmed, photos, language);
     setErrors(nextErrors);
-    if (Object.values(nextErrors).some(Boolean)) return;
+    if (Object.values(nextErrors).some(Boolean)) {
+      // Show a visible summary so the user knows the form did not save, and
+      // scrolls to the fields that need attention (the per-field errors are
+      // rendered under each input).
+      setSubmitError(
+        language === "en"
+          ? "Please fix the highlighted fields before submitting."
+          : "សូមកែតម្រូវវាលដែលបានសម្គាល់ មុនពេលដាក់ស្នើ។"
+      );
+      return;
+    }
 
     setSubmitting(true);
     try {
@@ -297,8 +334,11 @@ function ContributeContent() {
       }
 
       // Insert the new entry, listing every column explicitly.
-      // The database default will set status to 'pending'
-      const { error: insertError } = await supabase
+      // The database default will set status to 'pending'.
+      // `.select()` asks PostgREST to return the inserted row; that both
+      // confirms the write actually happened (RLS can silently affect 0 rows)
+      // and gives us the created id for diagnostics.
+      const { data: insertedRows, error: insertError } = await supabase
         .from("entries")
         .insert({
           owner: currentUser.id,
@@ -311,18 +351,38 @@ function ContributeContent() {
           description_en: trimmed.description_en,
           description_km: trimmed.description_km,
           photo_urls: photoUrls,
-        });
+        })
+        .select();
       if (insertError) throw insertError;
+      if (!insertedRows || insertedRows.length === 0) {
+        // No error but nothing came back: RLS blocked the insert. Surface it
+        // instead of showing a false success.
+        throw new Error("Insert returned no rows (blocked by RLS or missing policy).");
+      }
 
       // Show success message instead of redirecting
       setSubmitted(true);
     } catch (err) {
-      // Log the real error, but only ever show a friendly generic message.
-      console.error("Error submitting entry:", err);
+      // Log the full error details (message, code, hint) so a failure is
+      // diagnosable in the console instead of showing an empty `{}`.
+      console.error("Error submitting entry:", {
+        message: err?.message,
+        code: err?.code,
+        details: err?.details,
+        hint: err?.hint,
+        error: err,
+      });
+      // Build a readable reason from the Supabase error so the on-screen
+      // banner says what actually went wrong (not just "please try again").
+      const reason =
+        err?.message ||
+        err?.details ||
+        err?.hint ||
+        (typeof err === "string" ? err : JSON.stringify(err));
       setSubmitError(
         language === "en"
-          ? "We couldn't save your entry right now. Please try again."
-          : "យើងមិនអាចរក្សាទុកធាតុរបស់អ្នកបានទេនៅពេលនេះ។ សូមព្យាយាមម្តងទៀត។"
+          ? `We couldn't save your entry. ${reason || "Please try again."}`
+          : `យើងមិនអាចរក្សាទុកធាតុរបស់អ្នកបានទេ។ ${reason || "សូមព្យាយាមម្តងទៀត។"}`
       );
     } finally {
       setSubmitting(false);
@@ -491,9 +551,9 @@ export default function ContributePage() {
   return (
     <Suspense
       fallback={
-        <div style={{ padding: 40, textAlign: "center" }}>
-          Loading...
-        </div>
+        // Fallback renders before the language context is available, so it
+        // shows no text rather than an English-only string.
+        <div style={{ padding: 40, textAlign: "center" }} aria-busy="true" />
       }
     >
       <ContributeContent />

@@ -181,9 +181,9 @@ function SignupContent() {
 export default function SignupPage() {
   return (
     <Suspense fallback={
-      <div style={{ padding: 40, textAlign: "center" }}>
-        Loading...
-      </div>
+      // Fallback renders before the language context is available, so it shows
+      // no text rather than an English-only string.
+      <div style={{ padding: 40, textAlign: "center" }} aria-busy="true" />
     }>
       <SignupContent />
     </Suspense>

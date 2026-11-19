@@ -96,6 +96,7 @@ function EntryContent() {
   // every render keeps these labels in sync the moment the toggle flips.
   const t = {
     kicker: language === "en" ? "KHMER LIVING ARCHIVE" : "ប័ណ្ណសាររស់រវើកខ្មែរ",
+    loadingTitle: language === "en" ? "Entry" : "ធាតុ",
     loadingEntry: language === "en" ? "Loading entry..." : "កំពុងផ្ទុកធាតុ...",
     backToArchive: language === "en" ? "Back to the archive" : "ត្រឡប់ទៅប័ណ្ណសារ",
     notFound: language === "en" ? "This entry could not be found." : "រកមិនឃើញធាតុនេះទេ។",
@@ -143,6 +144,9 @@ function EntryContent() {
     loadFailed: language === "en"
       ? "We couldn't load this entry. Please try again."
       : "យើងមិនអាចផ្ទុកធាតុនេះបានទេ។ សូមព្យាយាមម្តងទៀត។",
+    footer: language === "en"
+      ? "Archived Kites — Preserving stories and memories, one kite at a time."
+      : "បណ្ណសារខ្លែង — រក្សាទុករឿងរ៉ាវ និងការចងចាំរបស់យើង។",
   };
 
   const [entry, setEntry] = useState(null);
@@ -240,8 +244,8 @@ function EntryContent() {
     };
   }, [id]);
 
-  const title = getText("title") || (language === "en" ? "Untitled Entry" : "ធាតុគ្មានចំណងជើង");
-  const contributor = getText("contributor") || (language === "en" ? "Unknown contributor" : "អ្នកចែករំលែកមិនស្គាល់");
+  const title = getText("title") || t.untitled;
+  const contributor = getText("contributor") || t.unknownContributor;
   const place = getText("places");
 
   const getStatusText = (status) => {
@@ -275,21 +279,23 @@ function EntryContent() {
     setDeleting(true);
     try {
       const supabase = createClient();
-      const { error } = await supabase
+      // `.select()` returns the deleted rows; an empty result means RLS
+      // blocked the delete, so we must not treat it as success.
+      const { data: deletedRows, error } = await supabase
         .from("entries")
         .delete()
-        .eq("id", id);
-      
+        .eq("id", id)
+        .select();
+
       if (error) throw error;
-      
+      if (!deletedRows || deletedRows.length === 0) {
+        throw new Error("Delete affected no rows (blocked by RLS or not the owner).");
+      }
+
       router.push("/browse");
     } catch (err) {
       console.error("Error deleting entry:", err);
-      alert(
-        language === "en"
-          ? "Failed to delete entry. Please try again."
-          : "មិនអាចលុបធាតុបានទេ។ សូមព្យាយាមម្តងទៀត។"
-      );
+      alert(t.deleteFailed);
       setDeleting(false);
     }
   };
@@ -317,18 +323,18 @@ function EntryContent() {
       setEntry((prev) => (prev ? { ...prev, status: decision, review_note: noteText || null } : prev));
     } catch (err) {
       console.error("Error reviewing entry:", err);
-      setReviewError(
-        language === "en"
-          ? "Failed to save the review. Please try again."
-          : "មិនអាចរក្សាទុកការពិនិត្យបានទេ។ សូមព្យាយាមម្តងទៀត។"
-      );
+      setReviewError(t.reviewFailed);
     } finally {
       setReviewProcessing(false);
     }
   };
 
-  // Approve: publish the entry and attach a default thank-you note.
-  const handleApprove = () => submitReview("published", APPROVAL_NOTE);
+  // Approve: publish the entry and attach a default thank-you note. The note
+  // is stored on the entry, so it is written in the active language at the
+  // moment the reviewer approves — read `language` here rather than passing the
+  // whole { en, km } object to the RPC.
+  const handleApprove = () =>
+    submitReview("published", APPROVAL_NOTE[language] || APPROVAL_NOTE.en);
 
   // Return: open the reason modal so the reviewer can explain what to fix.
   const handleReturnClick = () => {
@@ -341,11 +347,7 @@ function EntryContent() {
   const handleReturnConfirm = async () => {
     const trimmedReason = returnReason.trim();
     if (!trimmedReason) {
-      setReviewError(
-        language === "en"
-          ? "Please enter a reason so the contributor knows what to fix."
-          : "សូមបញ្ចូលហេតុផល ដើម្បីឱ្យអ្នកចូលរួមដឹងថាត្រូវកែអ្វី។"
-      );
+      setReviewError(t.reasonRequired);
       return;
     }
     await submitReview("returned", trimmedReason);
@@ -361,12 +363,10 @@ function EntryContent() {
       <Header />
       <main style={styles.wrap}>
         <div style={styles.header}>
-          <p style={styles.kicker}>
-            {language === "en" ? "KHMER LIVING ARCHIVE" : "ប័ណ្ណសាររស់រវើកខ្មែរ"}
-          </p>
+          <p style={styles.kicker}>{t.kicker}</p>
           <div style={styles.titleRow}>
             <h1 style={styles.title}>
-              {loading ? (language === "en" ? "Entry" : "ធាតុ") : title}
+              {loading ? t.loadingTitle : title}
             </h1>
             {!loading && !error && entry && (
               <span style={getStatusBadgeStyle(entry.status || 'pending')}>
@@ -393,20 +393,20 @@ function EntryContent() {
 
         {loading ? (
           <div style={styles.card}>
-            <p style={styles.loadingText}>Loading entry...</p>
+            <p style={styles.loadingText}>{t.loadingEntry}</p>
           </div>
         ) : error ? (
           <div style={styles.card}>
-            <p style={styles.errorText}>{error}</p>
+            <p style={styles.errorText}>{t.loadFailed}</p>
             <Link href="/browse" style={styles.buttonLink}>
-              Back to the archive
+              {t.backToArchive}
             </Link>
           </div>
         ) : !entry ? (
           <div style={styles.card}>
-            <p style={styles.errorText}>This entry could not be found.</p>
+            <p style={styles.errorText}>{t.notFound}</p>
             <Link href="/browse" style={styles.buttonLink}>
-              Back to the archive
+              {t.backToArchive}
             </Link>
           </div>
         ) : (
@@ -415,8 +415,8 @@ function EntryContent() {
             {!userLoading && isOwner && (
               <div style={styles.actionsCard}>
                 <div style={styles.actionsHeader}>
-                  <p style={styles.actionsTitle}>Entry Management</p>
-                  <p style={styles.actionsSubtitle}>You are the owner of this entry</p>
+                  <p style={styles.actionsTitle}>{t.entryManagement}</p>
+                  <p style={styles.actionsSubtitle}>{t.ownerNote}</p>
                 </div>
                 <div style={styles.actionsButtons}>
                   <button 
@@ -425,7 +425,7 @@ function EntryContent() {
                     style={styles.editButton}
                     disabled={deleting}
                   >
-                    Edit Entry
+                    {t.editEntry}
                   </button>
                   <button 
                     type="button"
@@ -433,7 +433,7 @@ function EntryContent() {
                     style={styles.deleteButton}
                     disabled={deleting}
                   >
-                    {deleting ? "Deleting..." : "Delete Entry"}
+                    {deleting ? t.deleting : t.deleteEntry}
                   </button>
                 </div>
               </div>
@@ -443,9 +443,9 @@ function EntryContent() {
             {canReview && (
               <div style={styles.reviewerCard}>
                 <div style={styles.actionsHeader}>
-                  <p style={styles.reviewerTitle}>Reviewer Actions</p>
+                  <p style={styles.reviewerTitle}>{t.reviewerActions}</p>
                   <p style={styles.actionsSubtitle}>
-                    Approve to publish this entry, or return it for edits.
+                    {t.reviewerHint}
                   </p>
                 </div>
                 {reviewError && (
@@ -458,7 +458,7 @@ function EntryContent() {
                     style={styles.approveButton}
                     disabled={reviewProcessing}
                   >
-                    {reviewProcessing ? "Processing..." : "Approve"}
+                    {reviewProcessing ? t.processing : t.approve}
                   </button>
                   <button
                     type="button"
@@ -466,7 +466,7 @@ function EntryContent() {
                     style={styles.returnButton}
                     disabled={reviewProcessing}
                   >
-                    Return
+                    {t.return}
                   </button>
                 </div>
               </div>
@@ -480,19 +480,19 @@ function EntryContent() {
             )}
 
             <div style={styles.card}>
-              <p style={styles.label}>DESCRIPTION</p>
+              <p style={styles.label}>{t.description}</p>
               {fallbackHint("description") && (
                 <p style={styles.fallbackHint}>{fallbackHint("description")}</p>
               )}
               <p style={styles.text}>
-                {getText("description") || "No description available."}
+                {getText("description") || t.noDescription}
               </p>
             </div>
 
             {/* Reviewer feedback note, visible to the owner and reviewers */}
             {entry.review_note && entry.review_note.trim() && (
               <div style={styles.reviewNoteBox}>
-                <div style={styles.reviewNoteLabel}>Reviewer Note</div>
+                <div style={styles.reviewNoteLabel}>{t.reviewerNote}</div>
                 <div style={styles.reviewNoteText}>{entry.review_note}</div>
               </div>
             )}
@@ -500,9 +500,7 @@ function EntryContent() {
         )}
 
         <footer style={styles.footer}>
-          {language === "en"
-            ? "Archived Kites — Preserving stories and memories, one kite at a time."
-            : "បណ្ណសារខ្លែង — រក្សាទុករឿងរ៉ាវ និងការចងចាំរបស់យើង។"}
+          {t.footer}
         </footer>
 
         {/* Delete Confirmation Modal */}
@@ -517,9 +515,9 @@ function EntryContent() {
             }}
           >
             <div style={styles.modalContent}>
-              <h3 style={styles.modalTitle}>Delete Entry</h3>
+              <h3 style={styles.modalTitle}>{t.deleteTitle}</h3>
               <p style={styles.modalText}>
-                Are you sure you want to delete this entry? This action cannot be undone.
+                {t.deleteConfirm}
               </p>
               <div style={styles.modalButtons}>
                 <button
@@ -527,14 +525,14 @@ function EntryContent() {
                   onClick={() => setIsDeleteModalOpen(false)}
                   style={styles.modalCancelButton}
                 >
-                  Cancel
+                  {t.cancel}
                 </button>
                 <button
                   type="button"
                   onClick={handleDeleteConfirm}
                   style={styles.modalDeleteButton}
                 >
-                  Delete
+                  {t.delete}
                 </button>
               </div>
             </div>
@@ -553,14 +551,14 @@ function EntryContent() {
             }}
           >
             <div style={styles.modalContent}>
-              <h3 style={styles.modalTitle}>Return for Edits</h3>
+              <h3 style={styles.modalTitle}>{t.returnTitle}</h3>
               <p style={styles.modalText}>
-                Tell the contributor what needs to change. This note is saved with the entry.
+                {t.returnHint}
               </p>
               <textarea
                 value={returnReason}
                 onChange={(e) => setReturnReason(e.target.value)}
-                placeholder="e.g. Please add the Khmer title and a clearer photo."
+                placeholder={t.returnPlaceholder}
                 style={styles.modalTextarea}
                 rows={4}
                 disabled={reviewProcessing}
@@ -575,7 +573,7 @@ function EntryContent() {
                   style={styles.modalCancelButton}
                   disabled={reviewProcessing}
                 >
-                  Cancel
+                  {t.cancel}
                 </button>
                 <button
                   type="button"
@@ -583,7 +581,7 @@ function EntryContent() {
                   style={styles.modalReturnButton}
                   disabled={reviewProcessing}
                 >
-                  {reviewProcessing ? "Returning..." : "Return Entry"}
+                  {reviewProcessing ? t.returning : t.returnEntry}
                 </button>
               </div>
             </div>
