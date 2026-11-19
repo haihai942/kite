@@ -4,14 +4,36 @@ import { useState, Suspense } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "../../lib/supabase-client.js";
 import Header from "../../components/header.js";
+import { useLanguage } from "../../contexts/language-context.js";
 
 function SignupContent() {
   const router = useRouter();
+  const { language } = useLanguage();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+
+  // Inline EN/KM dictionary for the signup page. Reading `language` on every
+  // render keeps these labels in sync the moment the toggle flips.
+  const t = {
+    kicker: language === "en" ? "KHMER LIVING ARCHIVE" : "ប័ណ្ណសាររស់រវើកខ្មែរ",
+    title: language === "en" ? "Sign Up" : "ចុះឈ្មោះ",
+    description: language === "en" ? "Create an account to join the archive" : "បង្កើតគណនីដើម្បីចូលរួមជាមួយប័ណ្ណសារ",
+    email: language === "en" ? "Email" : "អ៊ីមែល",
+    password: language === "en" ? "Password" : "ពាក្យសម្ងាត់",
+    passwordHint: language === "en" ? "Password must be at least 6 characters" : "ពាក្យសម្ងាត់ត្រូវតែមានយ៉ាងតិច 6 តួអក្សរ",
+    confirmPassword: language === "en" ? "Confirm Password" : "បញ្ជាក់ពាក្យសម្ងាត់",
+    creating: language === "en" ? "Creating Account..." : "កំពុងបង្កើតគណនី...",
+    create: language === "en" ? "Create Account" : "បង្កើតគណនី",
+    haveAccount: language === "en" ? "Already have an account?" : "មានគណនីរួចហើយ?",
+    signIn: language === "en" ? "Sign in" : "ចូល",
+    backHome: language === "en" ? "← Back to home" : "← ត្រឡប់ទៅទំព័រដើម",
+    mismatch: language === "en" ? "Passwords do not match" : "ពាក្យសម្ងាត់មិនត្រូវគ្នាទេ",
+    tooShort: language === "en" ? "Password must be at least 6 characters" : "ពាក្យសម្ងាត់ត្រូវតែមានយ៉ាងតិច 6 តួអក្សរ",
+    failed: language === "en" ? "Unable to create account. Please try again." : "មិនអាចបង្កើតគណនីបានទេ។ សូមព្យាយាមម្តងទៀត។",
+  };
 
   const handleSignup = async (e) => {
     e.preventDefault();
@@ -19,13 +41,13 @@ function SignupContent() {
 
     // Validate passwords match
     if (password !== confirmPassword) {
-      setError("Passwords do not match");
+      setError(t.mismatch);
       return;
     }
 
     // Validate password strength (basic check)
     if (password.length < 6) {
-      setError("Password must be at least 6 characters");
+      setError(t.tooShort);
       return;
     }
 
@@ -40,14 +62,14 @@ function SignupContent() {
 
       if (error) {
         // Show generic error message
-        setError("Unable to create account. Please try again.");
+        setError(t.failed);
       } else {
         // Redirect to home page after successful signup
         router.push("/");
         router.refresh();
       }
     } catch (err) {
-      setError("Unable to create account. Please try again.");
+      setError(t.failed);
     } finally {
       setLoading(false);
     }
@@ -58,10 +80,10 @@ function SignupContent() {
       <Header />
       <main style={styles.wrap}>
         <div style={styles.header}>
-          <p style={styles.kicker}>KHMER LIVING ARCHIVE</p>
-          <h1 style={styles.title}>Sign Up</h1>
+          <p style={styles.kicker}>{t.kicker}</p>
+          <h1 style={styles.title}>{t.title}</h1>
           <p style={styles.description}>
-            Create an account to join the archive
+            {t.description}
           </p>
         </div>
 
@@ -73,7 +95,7 @@ function SignupContent() {
 
             <div style={styles.field}>
               <label htmlFor="email" style={styles.label}>
-                Email
+                {t.email}
               </label>
               <input
                 id="email"
@@ -89,7 +111,7 @@ function SignupContent() {
 
             <div style={styles.field}>
               <label htmlFor="password" style={styles.label}>
-                Password
+                {t.password}
               </label>
               <input
                 id="password"
@@ -102,13 +124,13 @@ function SignupContent() {
                 disabled={loading}
               />
               <p style={styles.helperText}>
-                Password must be at least 6 characters
+                {t.passwordHint}
               </p>
             </div>
 
             <div style={styles.field}>
               <label htmlFor="confirmPassword" style={styles.label}>
-                Confirm Password
+                {t.confirmPassword}
               </label>
               <input
                 id="confirmPassword"
@@ -127,19 +149,19 @@ function SignupContent() {
               style={styles.button}
               disabled={loading}
             >
-              {loading ? "Creating Account..." : "Create Account"}
+              {loading ? t.creating : t.create}
             </button>
 
             <div style={styles.authFooter}>
               <p style={styles.footerText}>
-                Already have an account?{" "}
+                {t.haveAccount}{" "}
                 <a href="/login" style={styles.link}>
-                  Sign in
+                  {t.signIn}
                 </a>
               </p>
               <p style={styles.footerText}>
                 <a href="/" style={styles.link}>
-                  ← Back to home
+                  {t.backHome}
                 </a>
               </p>
             </div>
@@ -147,7 +169,9 @@ function SignupContent() {
         </div>
 
         <footer style={styles.footer}>
-          Built in ICT 340 — Vibe Coding, Archived Kites new thing.
+          {language === "en"
+            ? "Archived Kites — Preserving stories and memories, one kite at a time."
+            : "បណ្ណសារខ្លែង — រក្សាទុករឿងរ៉ាវ និងការចងចាំរបស់យើង។"}
         </footer>
       </main>
     </>

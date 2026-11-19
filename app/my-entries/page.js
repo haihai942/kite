@@ -215,7 +215,7 @@ function MyEntriesContent() {
         setEntries(data || []);
       } catch (err) {
         console.error('Error:', err);
-        setError('Failed to load entries.');
+        setError('failed');
       } finally {
         setLoading(false);
       }
@@ -299,7 +299,8 @@ function MyEntriesContent() {
       setPendingDeleteId(null);
     } catch (err) {
       console.error("Error deleting entry:", err);
-      setDeleteError("Failed to delete entry. Please try again.");
+      // Store a language-neutral flag; the message is translated at render.
+      setDeleteError("failed");
     } finally {
       setDeleting(false);
     }
@@ -317,7 +318,9 @@ function MyEntriesContent() {
         <Header />
         <main style={styles.wrap}>
           <div style={styles.loadingContainer}>
-            <p style={styles.loadingText}>Loading...</p>
+            <p style={styles.loadingText}>
+              {activeLanguage === "en" ? "Loading..." : "កំពុងផ្ទុក..."}
+            </p>
           </div>
         </main>
       </>
@@ -329,13 +332,24 @@ function MyEntriesContent() {
       <>
         <Header />
         <main style={styles.wrap}>
-          <p style={styles.kicker}>MY ENTRIES</p>
+          <p style={styles.kicker}>
+            {activeLanguage === "en" ? "MY ENTRIES" : "ស្នាដៃខ្ញុំ"}
+          </p>
           <h1 style={styles.title}>{activeLanguage === "en" ? "My Entries" : "ការដាក់ស្នើរបស់ខ្ញុំ"}</h1>
           <div style={styles.card}>
-            <p style={styles.loginMessage}>Please log in to view your entries</p>
-            <Link href="/login" style={styles.buttonLink}>Log in</Link>
+            <p style={styles.loginMessage}>
+              {activeLanguage === "en"
+                ? "Please log in to view your entries"
+                : "សូមចូលដើម្បីមើលការដាក់ស្នើរបស់អ្នក"}
+            </p>
+            <Link href="/login" style={styles.buttonLink}>
+              {activeLanguage === "en" ? "Log in" : "ចូល"}
+            </Link>
             <p style={styles.helperText}>
-              New here? <Link href="/signup" style={styles.link}>Create an account</Link>
+              {activeLanguage === "en" ? "New here? " : "ថ្មីនៅទីនេះ? "}
+              <Link href="/signup" style={styles.link}>
+                {activeLanguage === "en" ? "Create an account" : "បង្កើតគណនី"}
+              </Link>
             </p>
           </div>
         </main>
@@ -347,7 +361,9 @@ function MyEntriesContent() {
     <>
       <Header />
       <main style={styles.wrap}>
-        <p style={styles.kicker}>MY ENTRIES</p>
+        <p style={styles.kicker}>
+          {activeLanguage === "en" ? "MY ENTRIES" : "ស្នាដៃខ្ញុំ"}
+        </p>
         <div style={styles.titleRow}>
           <h1 style={styles.title}>{activeLanguage === "en" ? "My Entries" : "ការដាក់ស្នើរបស់ខ្ញុំ"}</h1>
           <Link href={`/contribute?lang=${activeLanguage}`} style={styles.addButton}>
@@ -356,17 +372,34 @@ function MyEntriesContent() {
         </div>
 
         {loading ? (
-          <div style={styles.loadingContainer}><p style={styles.loadingText}>Loading your entries...</p></div>
+          <div style={styles.loadingContainer}>
+            <p style={styles.loadingText}>
+              {activeLanguage === "en" ? "Loading your entries..." : "កំពុងផ្ទុកធាតុរបស់អ្នក..."}
+            </p>
+          </div>
         ) : error ? (
-          <div style={styles.errorContainer}><p style={styles.errorText}>{error}</p></div>
+          <div style={styles.errorContainer}>
+            <p style={styles.errorText}>
+              {activeLanguage === "en" ? "Failed to load entries." : "មិនអាចផ្ទុកធាតុបានទេ។"}
+            </p>
+          </div>
         ) : entries.length === 0 ? (
           <div style={styles.emptyContainer}>
-            <p style={styles.emptyText}>You haven't submitted any entries yet.</p>
-            <Link href="/contribute" style={styles.buttonLink}>Submit Your First Entry</Link>
+            <p style={styles.emptyText}>
+              {activeLanguage === "en"
+                ? "You haven't submitted any entries yet."
+                : "អ្នកមិនទាន់បានដាក់ស្នើធាតុណាមួយនៅឡើយទេ។"}
+            </p>
+            <Link href="/contribute" style={styles.buttonLink}>
+              {activeLanguage === "en" ? "Submit Your First Entry" : "ដាក់ស្នើធាតុដំបូងរបស់អ្នក"}
+            </Link>
           </div>
         ) : (
           <>
-            <p style={styles.count}>entries: {entries.length}</p>
+            <p style={styles.count}>
+              {activeLanguage === "en" ? "entries: " : "ធាតុ៖ "}
+              {entries.length}
+            </p>
             <div style={styles.filterBar}>
               {FILTER_OPTIONS.map((option) => (
                 <button
@@ -381,7 +414,11 @@ function MyEntriesContent() {
             </div>
             <div style={styles.entriesList}>
               {filteredEntries.length === 0 ? (
-                <p style={styles.filterEmptyText}>No entries match this filter.</p>
+                <p style={styles.filterEmptyText}>
+                  {activeLanguage === "en"
+                    ? "No entries match this filter."
+                    : "គ្មានធាតុណាមួយត្រូវនឹងតម្រងនេះទេ។"}
+                </p>
               ) : (
                 filteredEntries.map((entry) => (
                   <div key={entry.id} style={styles.entryCard}>
@@ -425,7 +462,9 @@ function MyEntriesContent() {
         )}
         
         <footer style={styles.footer}>
-          Built in ICT 340 — Vibe Coding, Archived Kites new thing.
+          {language === "en"
+            ? "Archived Kites — Preserving stories and memories, one kite at a time."
+            : "បណ្ណសារខ្លែង — រក្សាទុករឿងរ៉ាវ និងការចងចាំរបស់យើង។"}
         </footer>
 
         {/* Delete confirmation modal */}

@@ -4,6 +4,7 @@ import { useState, useEffect, Suspense } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import Header from "../../../../components/header.js";
+import PhotoDropzone from "../../../../components/photoDropzone.js";
 import { createClient } from "../../../../lib/supabase-client.js";
 import { 
   validatePhotoFile,
@@ -93,7 +94,7 @@ function trimValues(values) {
   return trimmed;
 }
 
-function validate(values, photo, removeCurrentPhoto = false, existingPhotoUrl = "") {
+function validate(values, photos, removeCurrentPhoto = false, existingPhotoUrl = "") {
   const errors = {};
 
   // Title (English): required, max 30 chars, not blank spaces or symbols only.
@@ -130,24 +131,30 @@ function validate(values, photo, removeCurrentPhoto = false, existingPhotoUrl = 
   // Photo validation for editing
   // Photo is required for entries - either keep existing or upload new
   // User can intentionally remove photo with "Remove photo" checkbox
-  
+
+  const hasNewPhotos = photos && photos.length > 0;
+
   if (removeCurrentPhoto) {
     // User is removing the current photo
     // If removing current photo, a new photo MUST be uploaded
-    if (!photo) {
+    if (!hasNewPhotos) {
       errors.photo = "Please upload a new photo. Every entry must have at least one photo.";
     } else {
-      // Validate the new photo being uploaded
-      const validation = validatePhotoFile(photo);
-      if (!validation.isValid) {
-        errors.photo = validation.error;
+      // Validate the new photos being uploaded
+      const invalid = photos
+        .map((file) => validatePhotoFile(file))
+        .find((validation) => !validation.isValid);
+      if (invalid) {
+        errors.photo = invalid.error;
       }
     }
-  } else if (photo) {
-    // User is uploading a new photo (optional replacement) - validate it
-    const validation = validatePhotoFile(photo);
-    if (!validation.isValid) {
-      errors.photo = validation.error;
+  } else if (hasNewPhotos) {
+    // User is uploading new photos (optional replacement) - validate them
+    const invalid = photos
+      .map((file) => validatePhotoFile(file))
+      .find((validation) => !validation.isValid);
+    if (invalid) {
+      errors.photo = invalid.error;
     }
   } else if (!existingPhotoUrl) {
     // No existing photo, no new photo uploaded, not removing (nothing to remove)
@@ -172,7 +179,7 @@ function EditContent() {
   const [error, setError] = useState(null);
 
   const [values, setValues] = useState(EMPTY_VALUES);
-  const [photo, setPhoto] = useState(null);
+  const [photos, setPhotos] = useState([]);
   const [photoKey, setPhotoKey] = useState(0);
   const [errors, setErrors] = useState({});
   const [submitting, setSubmitting] = useState(false);
@@ -263,23 +270,23 @@ function EditContent() {
     const trimmed = trimValues({ [field]: values[field] });
     const newValues = { ...values, ...trimmed };
     setValues(newValues);
-    const newErrors = validate(newValues, photo, removeCurrentPhoto, existingPhotoUrl);
+    const newErrors = validate(newValues, photos, removeCurrentPhoto, existingPhotoUrl);
     if (newErrors[field]) {
       setErrors((prev) => ({ ...prev, [field]: newErrors[field] }));
     }
   };
 
-  const handlePhotoChange = (e) => {
-    const file = e.target.files && e.target.files[0];
-    setPhoto(file || null);
-    
+  const handlePhotoChange = (files) => {
+    const nextPhotos = files || [];
+    setPhotos(nextPhotos);
+
     // When user selects a new photo, reset the remove photo state
-    if (file && removeCurrentPhoto) {
+    if (nextPhotos.length > 0 && removeCurrentPhoto) {
       setRemoveCurrentPhoto(false);
     }
-    
-    // Always validate when photo changes
-    const nextErrors = validate(values, file || null, removeCurrentPhoto, existingPhotoUrl);
+
+    // Always validate when photos change
+    const nextErrors = validate(values, nextPhotos, removeCurrentPhoto, existingPhotoUrl);
     setErrors((prev) => ({ ...prev, photo: nextErrors.photo || "" }));
   };
 
@@ -289,7 +296,7 @@ function EditContent() {
     const trimmed = trimValues(values);
     setValues(trimmed);
     
-    const validationErrors = validate(trimmed, photo, removeCurrentPhoto, existingPhotoUrl);
+    const validationErrors = validate(trimmed, photos, removeCurrentPhoto, existingPhotoUrl);
     if (Object.keys(validationErrors).length > 0) {
       setErrors(validationErrors);
       return;
@@ -308,59 +315,37 @@ function EditContent() {
       // Get existing photo URL and prepare for possible deletion
       const existingPhotoUrl = entry?.photo_urls?.[0] || "";
       const existingFilePath = extractFilePathFromUrl(existingPhotoUrl);
-      let finalPhotoUrl = existingPhotoUrl;
       let photoToDeletePath = null;
-      
-      // Handle photo removal or replacement
-      if (removeCurrentPhoto && photo) {
-        // User is removing current photo AND uploading a new one
-        // Delete old photo and upload new one
-        photoToDeletePath = existingFilePath;
-        
-        // Upload the new photo
-        const filePreparation = prepareFileForUpload(photo);
-        if (!filePreparation.isValid) {
-          throw new Error(filePreparation.error);
+
+      // Handle photo removal or replacement. New uploads replace the existing
+      // photo(s); each file is uploaded to <user_id>/<random_uuid>.<ext>.
+      let finalPhotoUrls = existingPhotoUrl ? [existingPhotoUrl] : [];
+
+      if (photos.length > 0) {
+        finalPhotoUrls = [];
+        for (const file of photos) {
+          const filePreparation = prepareFileForUpload(file);
+          if (!filePreparation.isValid) {
+            throw new Error(filePreparation.error);
+          }
+
+          const safeExtension = filePreparation.safeExtension;
+          const newFilePath = `${currentUser.id}/${makePhotoId()}.${safeExtension}`;
+          const { error: uploadError } = await supabase.storage
+            .from("photos")
+            .upload(newFilePath, file, {
+              contentType: filePreparation.contentType,
+              upsert: false,
+            });
+          if (uploadError) throw uploadError;
+
+          const { data: urlData } = supabase.storage
+            .from("photos")
+            .getPublicUrl(newFilePath);
+          finalPhotoUrls.push(urlData.publicUrl);
         }
-        
-        const safeExtension = filePreparation.safeExtension;
-        const newFilePath = `${currentUser.id}/${makePhotoId()}.${safeExtension}`;
-        const { error: uploadError } = await supabase.storage
-          .from("photos")
-          .upload(newFilePath, photo, {
-            contentType: filePreparation.contentType,
-            upsert: false,
-          });
-        if (uploadError) throw uploadError;
-        
-        const { data: urlData } = supabase.storage
-          .from("photos")
-          .getPublicUrl(newFilePath);
-        finalPhotoUrl = urlData.publicUrl;
-      } else if (photo) {
-        // User is uploading a new photo (not removing current one)
-        // Strict file validation and preparation
-        const filePreparation = prepareFileForUpload(photo);
-        if (!filePreparation.isValid) {
-          throw new Error(filePreparation.error);
-        }
-        
-        const safeExtension = filePreparation.safeExtension;
-        const newFilePath = `${currentUser.id}/${makePhotoId()}.${safeExtension}`;
-        const { error: uploadError } = await supabase.storage
-          .from("photos")
-          .upload(newFilePath, photo, {
-            contentType: filePreparation.contentType,
-            upsert: false,
-          });
-        if (uploadError) throw uploadError;
-        
-        const { data: urlData } = supabase.storage
-          .from("photos")
-          .getPublicUrl(newFilePath);
-        finalPhotoUrl = urlData.publicUrl;
-        
-        // Mark old photo for deletion if it exists and is being replaced
+
+        // Mark the old photo for deletion if it exists and is being replaced
         if (existingFilePath) {
           photoToDeletePath = existingFilePath;
         }
@@ -368,7 +353,7 @@ function EditContent() {
         // User wants to remove current photo without uploading a new one
         // This should not pass validation, but handle defensively
         photoToDeletePath = existingFilePath;
-        finalPhotoUrl = ""; // Will result in empty photo_urls array
+        finalPhotoUrls = [];
       }
       
       // Check if user is a reviewer
@@ -387,7 +372,7 @@ function EditContent() {
       };
       
       // Update photo_urls based on final state
-      updateData.photo_urls = finalPhotoUrl ? [finalPhotoUrl] : [];
+      updateData.photo_urls = finalPhotoUrls;
       
       // Set status to 'pending' unless user is a reviewer
       if (!isReviewer) {
@@ -439,7 +424,7 @@ function EditContent() {
   const handlePhotoRemoveConfirm = () => {
     setRemoveCurrentPhoto(true);
     // Clear the current photo upload if any
-    setPhoto(null);
+    setPhotos([]);
     // Reset the file input
     setPhotoKey(prev => prev + 1);
     // Close the confirmation modal
@@ -465,7 +450,9 @@ function EditContent() {
         <Header />
         <main style={styles.wrap}>
           <div style={styles.header}>
-            <p style={styles.kicker}>KHMER LIVING ARCHIVE</p>
+            <p style={styles.kicker}>
+              {language === "en" ? "KHMER LIVING ARCHIVE" : "ប័ណ្ណសាររស់រវើកខ្មែរ"}
+            </p>
             <h1 style={styles.title}>Edit Entry</h1>
           </div>
           <div style={styles.card}>
@@ -487,7 +474,9 @@ function EditContent() {
       <Header />
       <main style={styles.wrap}>
         <div style={styles.header}>
-          <p style={styles.kicker}>KHMER LIVING ARCHIVE</p>
+          <p style={styles.kicker}>
+            {language === "en" ? "KHMER LIVING ARCHIVE" : "ប័ណ្ណសាររស់រវើកខ្មែរ"}
+          </p>
           <h1 style={styles.title}>Edit Entry</h1>
           {entry && (
             <p style={styles.subtitle}>
@@ -739,27 +728,22 @@ function EditContent() {
                   </p>
                 </div>
               )}
-              <input
-                id="photo"
+              <PhotoDropzone
                 key={photoKey}
-                type="file"
-                accept="image/jpeg,image/png,image/webp"
+                id="photo"
                 onChange={handlePhotoChange}
-                style={styles.fileInput}
               />
               {errors.photo ? (
-                <p style={styles.fieldError}>{errors.photo}</p>
-              ) : (
-                <span style={styles.counter}>
-                  {removeCurrentPhoto 
-                    ? "Photo will be removed. Please upload a new photo below."
-                    : photo
-                      ? `${photo.name} (${(photo.size / (1024 * 1024)).toFixed(2)} MB)`
-                      : existingPhotoUrl 
-                        ? "Keep current photo or upload a new one (JPG, PNG, or WebP, max 5 MB)"
-                        : "JPG, PNG, or WebP, max 5 MB"}
+                <p style={{ ...styles.fieldError, marginTop: 8 }}>{errors.photo}</p>
+              ) : removeCurrentPhoto ? (
+                <span style={{ ...styles.counter, marginTop: 8 }}>
+                  Photo will be removed. Please upload a new photo below.
                 </span>
-              )}
+              ) : existingPhotoUrl && photos.length === 0 ? (
+                <span style={{ ...styles.counter, marginTop: 8 }}>
+                  Keep current photo or upload a new one (JPG, PNG, or WebP, max 5 MB)
+                </span>
+              ) : null}
             </div>
 
             <div style={styles.buttonGroup}>
@@ -786,7 +770,9 @@ function EditContent() {
          </div>
 
         <footer style={styles.footer}>
-            Built in ICT 340 — Vibe Coding, Archived Kites new thing.
+            {language === "en"
+              ? "Archived Kites — Preserving stories and memories, one kite at a time."
+              : "បណ្ណសារខ្លែង — រក្សាទុករឿងរ៉ាវ និងការចងចាំរបស់យើង។"}
           </footer>
 
           {/* Photo Removal Confirmation Modal */}
@@ -931,13 +917,6 @@ const styles = {
     resize: "vertical",
     fontFamily: "inherit",
     lineHeight: 1.5,
-  },
-  fileInput: {
-    width: "100%",
-    padding: "10px 0",
-    fontSize: 14,
-    color: "#1E3A8A",
-    boxSizing: "border-box",
   },
   fieldError: {
     color: "#DC2626",

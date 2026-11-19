@@ -184,7 +184,9 @@ function ReviewerQueuePageContent() {
       <>
         <Header />
         <main style={styles.wrap}>
-          <p style={styles.kicker}>REVIEWER QUEUE</p>
+          <p style={styles.kicker}>
+            {language === "en" ? "REVIEWER QUEUE" : "ជួររង់ចាំការពិនិត្យ"}
+          </p>
           <h1 style={styles.title}>{language === "en" ? "Reviewer Queue" : "ជួររង់ចាំការពិនិត្យ"}</h1>
           <div style={styles.card}>
             <p style={styles.loginMessage}>Please log in to access the reviewer queue</p>
@@ -202,7 +204,9 @@ function ReviewerQueuePageContent() {
       <>
         <Header />
         <main style={styles.wrap}>
-          <p style={styles.kicker}>REVIEWER QUEUE</p>
+          <p style={styles.kicker}>
+            {language === "en" ? "REVIEWER QUEUE" : "ជួររង់ចាំការពិនិត្យ"}
+          </p>
           <h1 style={styles.title}>{language === "en" ? "Reviewer Queue" : "ជួររង់ចាំការពិនិត្យ"}</h1>
           <div style={styles.card}>
             <p style={styles.errorText}>You do not have reviewer permissions.</p>
@@ -219,15 +223,25 @@ function ReviewerQueuePageContent() {
     <>
       <Header />
       <main style={styles.wrap}>
-        <p style={styles.kicker}>REVIEWER QUEUE</p>
+        <p style={styles.kicker}>
+          {language === "en" ? "REVIEWER QUEUE" : "ជួររង់ចាំការពិនិត្យ"}
+        </p>
         <h1 style={styles.title}>{language === "en" ? "Reviewer Queue" : "ជួររង់ចាំការពិនិត្យ"}</h1>
         
         <div style={styles.infoBox}>
           <p style={styles.infoText}>
-            Review pending entries. Approve to publish or return for edits.
+            {language === "en"
+              ? "Review pending entries. Approve to publish or return for edits."
+              : "ពិនិត្យធាតុកំពុងរង់ចាំ។ អនុម័តដើម្បីផ្សព្វផ្សាយ ឬត្រឡប់វិញសម្រាប់ការកែសម្រួល។"}
           </p>
           <p style={styles.count}>
-            {loading ? "Loading..." : `${entries.length} pending ${entries.length === 1 ? 'entry' : 'entries'}`}
+            {loading
+              ? language === "en"
+                ? "Loading..."
+                : "កំពុងផ្ទុក..."
+              : language === "en"
+                ? `${entries.length} pending ${entries.length === 1 ? "entry" : "entries"}`
+                : `ធាតុកំពុងរង់ចាំ ${entries.length}`}
           </p>
           {!loading && entries.length > 1 && (
             <div style={styles.sortRow}>
@@ -322,7 +336,9 @@ function ReviewerQueuePageContent() {
         )}
         
         <footer style={styles.footer}>
-          Built in ICT 340 — Vibe Coding, Archived Kites new thing.
+          {language === "en"
+            ? "Archived Kites — Preserving stories and memories, one kite at a time."
+            : "បណ្ណសារខ្លែង — រក្សាទុករឿងរ៉ាវ និងការចងចាំរបស់យើង។"}
         </footer>
 
         {/* Return Reason Modal */}

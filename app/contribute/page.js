@@ -4,6 +4,7 @@ import { useState, useEffect, Suspense } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import Header from "../../components/header.js";
+import PhotoDropzone from "../../components/photoDropzone.js";
 import { createClient } from "../../lib/supabase-client.js";
 import {
   MAX_FILE_SIZE,
@@ -77,7 +78,7 @@ function makePhotoId() {
   return `photo-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
 }
 
-function validate(values, photo, language = "en") {
+function validate(values, photos, language = "en") {
   const errors = {};
   const en = language === "en";
 
@@ -125,13 +126,15 @@ function validate(values, photo, language = "en") {
     }
   });
 
-  // Photo: required, strict validation using file-validation.js
-  if (!photo) {
+  // Photos: at least one required, each strictly validated via file-validation.js
+  if (!photos || photos.length === 0) {
     errors.photo = en ? "Please choose a photo." : "សូមជ្រើសរើសរូបថតមួយ។";
   } else {
-    const validation = validatePhotoFile(photo);
-    if (!validation.isValid) {
-      errors.photo = validation.error;
+    const invalid = photos
+      .map((file) => validatePhotoFile(file))
+      .find((validation) => !validation.isValid);
+    if (invalid) {
+      errors.photo = invalid.error;
     }
   }
 
@@ -146,7 +149,7 @@ function ContributeContent() {
   const [authLoading, setAuthLoading] = useState(true);
 
   const [values, setValues] = useState(EMPTY_VALUES);
-  const [photo, setPhoto] = useState(null);
+  const [photos, setPhotos] = useState([]);
   const [photoKey, setPhotoKey] = useState(0);
   const [errors, setErrors] = useState({});
   const [submitError, setSubmitError] = useState("");
@@ -178,15 +181,15 @@ function ContributeContent() {
   };
 
   const handleBlur = (field) => () => {
-    const nextErrors = validate(trimValues(values), photo, language);
+    const nextErrors = validate(trimValues(values), photos, language);
     setErrors((prev) => ({ ...prev, [field]: nextErrors[field] || "" }));
   };
 
-  const handlePhotoChange = (e) => {
-    const file = e.target.files && e.target.files[0];
-    setPhoto(file || null);
+  const handlePhotoChange = (files) => {
+    const nextPhotos = files || [];
+    setPhotos(nextPhotos);
     if (errors.photo) {
-      const nextErrors = validate(trimValues(values), file || null, language);
+      const nextErrors = validate(trimValues(values), nextPhotos, language);
       setErrors((prev) => ({ ...prev, photo: nextErrors.photo || "" }));
     }
   };
@@ -196,7 +199,7 @@ function ContributeContent() {
     setSubmitError("");
 
     const trimmed = trimValues(values);
-    const nextErrors = validate(trimmed, photo, language);
+    const nextErrors = validate(trimmed, photos, language);
     setErrors(nextErrors);
     if (Object.values(nextErrors).some(Boolean)) return;
 
@@ -218,20 +221,20 @@ function ContributeContent() {
         return;
       }
 
-      // Upload the photo to the 'photos' bucket: <user_id>/<random_uuid>.<ext>
-      let photoUrl = "";
-      if (photo) {
+      // Upload each photo to the 'photos' bucket: <user_id>/<random_uuid>.<ext>
+      const photoUrls = [];
+      for (const file of photos) {
         // Strict file validation and preparation
-        const filePreparation = prepareFileForUpload(photo);
+        const filePreparation = prepareFileForUpload(file);
         if (!filePreparation.isValid) {
           throw new Error(filePreparation.error);
         }
-        
+
         const safeExtension = filePreparation.safeExtension;
         const filePath = `${currentUser.id}/${makePhotoId()}.${safeExtension}`;
         const { error: uploadError } = await supabase.storage
           .from("photos")
-          .upload(filePath, photo, {
+          .upload(filePath, file, {
             contentType: filePreparation.contentType,
             upsert: false,
           });
@@ -240,7 +243,7 @@ function ContributeContent() {
         const { data: urlData } = supabase.storage
           .from("photos")
           .getPublicUrl(filePath);
-        photoUrl = urlData.publicUrl;
+        photoUrls.push(urlData.publicUrl);
       }
 
       // Insert the new entry, listing every column explicitly.
@@ -257,7 +260,7 @@ function ContributeContent() {
           places_km: trimmed.places_km,
           description_en: trimmed.description_en,
           description_km: trimmed.description_km,
-          photo_urls: photoUrl ? [photoUrl] : [],
+          photo_urls: photoUrls,
         });
       if (insertError) throw insertError;
 
@@ -281,7 +284,9 @@ function ContributeContent() {
       <Header />
       <main style={styles.wrap}>
         <div style={styles.header}>
-          <p style={styles.kicker}>KHMER LIVING ARCHIVE</p>
+          <p style={styles.kicker}>
+            {language === "en" ? "KHMER LIVING ARCHIVE" : "ប័ណ្ណសាររស់រវើកខ្មែរ"}
+          </p>
           <h1 style={styles.title}>
             {language === "en" ? "Contribute an Entry" : "ចូលរួមចំណែកធាតុមួយ"}
           </h1>
@@ -526,25 +531,16 @@ function ContributeContent() {
                   {language === "en" ? "Photo" : "រូបថត"}{" "}
                   <span style={styles.required}>*</span>
                 </label>
-                <input
-                  id="photo"
+                <PhotoDropzone
                   key={photoKey}
-                  type="file"
-                  accept="image/jpeg,image/png,image/webp"
+                  id="photo"
                   onChange={handlePhotoChange}
-                  style={styles.fileInput}
                 />
                 {errors.photo ? (
-                  <p style={styles.fieldError}>{errors.photo}</p>
-                ) : (
-                  <span style={styles.counter}>
-                    {photo
-                      ? `${photo.name} (${(photo.size / (1024 * 1024)).toFixed(2)} MB)`
-                      : language === "en"
-                        ? "JPG, PNG, or WebP, max 5 MB"
-                        : "JPG, PNG ឬ WebP អតិបរមា 5 MB"}
-                  </span>
-                )}
+                  <p style={{ ...styles.fieldError, marginTop: 8 }}>
+                    {errors.photo}
+                  </p>
+                ) : null}
               </div>
 
               <button
@@ -569,7 +565,9 @@ function ContributeContent() {
         )}
 
         <footer style={styles.footer}>
-          Built in ICT 340 — Vibe Coding, Archived Kites new thing.
+          {language === "en"
+            ? "Archived Kites — Preserving stories and memories, one kite at a time."
+            : "បណ្ណសារខ្លែង — រក្សាទុករឿងរ៉ាវ និងការចងចាំរបស់យើង។"}
         </footer>
       </main>
     </>
@@ -678,13 +676,6 @@ const styles = {
     resize: "vertical",
     fontFamily: "inherit",
     lineHeight: 1.5,
-  },
-  fileInput: {
-    width: "100%",
-    padding: "10px 0",
-    fontSize: 14,
-    color: "#1E3A8A",
-    boxSizing: "border-box",
   },
   fieldError: {
     color: "#DC2626",

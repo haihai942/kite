@@ -12,6 +12,22 @@ function HeaderContent() {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const { language, toggleLanguage } = useLanguage();
+
+  // Inline EN/KM dictionary for the header chrome. Reading `language` on every
+  // render keeps these labels in sync the moment the toggle flips.
+  const t = {
+    brand: language === "en" ? "KHMER ARCHIVE" : "ប័ណ្ណសារខ្មែរ",
+    home: language === "en" ? "Home" : "ទំព័រដើម",
+    browse: language === "en" ? "Browse" : "មើលស្នាដៃ",
+    contribute: language === "en" ? "Contribute" : "ចូលរួមចំណែក",
+    myEntries: language === "en" ? "My Entries" : "ស្នាដៃខ្ញុំ",
+    reviewQueue: language === "en" ? "Review Queue" : "ជួររង់ចាំ",
+    searchPlaceholder: language === "en" ? "Search..." : "ស្វែងរក...",
+    loading: language === "en" ? "Loading..." : "កំពុងផ្ទុក...",
+    logout: language === "en" ? "Logout" : "ចាកចេញ",
+    login: language === "en" ? "Login" : "ចូល",
+    signup: language === "en" ? "Signup" : "ចុះឈ្មោះ",
+  };
   
   // Sync URL language parameter with context on initial load
   useEffect(() => {
@@ -111,29 +127,29 @@ function HeaderContent() {
       <div style={styles.headerInner}>
         {/* Brand Logo */}
         <Link href={getCleanPageUrl("/")} style={styles.brand}>
-          KHMER ARCHIVE
+          {t.brand}
         </Link>
 
         {/* Navigation & Search */}
         <div style={styles.rightGroup}>
           <nav style={styles.navLinks}>
             <Link href={getCleanPageUrl("/")} style={styles.link}>
-              Home
+              {t.home}
             </Link>
             <Link href={getCleanPageUrl("/browse")} style={styles.link}>
-              Browse
+              {t.browse}
             </Link>
             <Link href={getCleanPageUrl("/contribute")} style={styles.link}>
-              Contribute
+              {t.contribute}
             </Link>
             {!loading && user && (
               <Link href={getCleanPageUrl("/my-entries")} style={styles.link}>
-                My Entries
+                {t.myEntries}
               </Link>
             )}
             {!loading && user && isReviewer && (
               <Link href={getCleanPageUrl("/reviewer-queue")} style={styles.link}>
-                Review Queue
+                {t.reviewQueue}
               </Link>
             )}
           </nav>
@@ -141,7 +157,7 @@ function HeaderContent() {
           <form onSubmit={handleSearch} style={styles.searchForm}>
             <input
               type="text"
-              placeholder="Search..."
+              placeholder={t.searchPlaceholder}
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               style={styles.searchInput}
@@ -151,21 +167,21 @@ function HeaderContent() {
           {/* Auth section */}
           <div style={styles.authSection}>
             {loading ? (
-              <div style={styles.loading}>Loading...</div>
+              <div style={styles.loading}>{t.loading}</div>
             ) : user ? (
               <div style={styles.userInfo}>
                 <span style={styles.userEmail}>{user.email}</span>
                 <button type="button" onClick={handleLogout} style={styles.logoutButton}>
-                  Logout
+                  {t.logout}
                 </button>
               </div>
             ) : (
               <div style={styles.authLinks}>
                 <Link href="/login" style={styles.authLink}>
-                  Login
+                  {t.login}
                 </Link>
                 <Link href="/signup" style={styles.authLink}>
-                  Signup
+                  {t.signup}
                 </Link>
               </div>
             )}

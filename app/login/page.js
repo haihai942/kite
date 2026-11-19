@@ -4,13 +4,31 @@ import { useState, Suspense } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "../../lib/supabase-client.js";
 import Header from "../../components/header.js";
+import { useLanguage } from "../../contexts/language-context.js";
 
 function LoginContent() {
   const router = useRouter();
+  const { language } = useLanguage();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+
+  // Inline EN/KM dictionary for the login page. Reading `language` on every
+  // render keeps these labels in sync the moment the toggle flips.
+  const t = {
+    kicker: language === "en" ? "KHMER LIVING ARCHIVE" : "ប័ណ្ណសាររស់រវើកខ្មែរ",
+    title: language === "en" ? "Login" : "ចូល",
+    description: language === "en" ? "Sign in to access your account" : "ចូលដើម្បីប្រើគណនីរបស់អ្នក",
+    email: language === "en" ? "Email" : "អ៊ីមែល",
+    password: language === "en" ? "Password" : "ពាក្យសម្ងាត់",
+    signingIn: language === "en" ? "Signing in..." : "កំពុងចូល...",
+    signIn: language === "en" ? "Sign In" : "ចូល",
+    noAccount: language === "en" ? "Don't have an account?" : "មិនទាន់មានគណនី?",
+    signup: language === "en" ? "Sign up" : "ចុះឈ្មោះ",
+    backHome: language === "en" ? "← Back to home" : "← ត្រឡប់ទៅទំព័រដើម",
+    invalid: language === "en" ? "Invalid email or password" : "អ៊ីមែល ឬពាក្យសម្ងាត់មិនត្រឹមត្រូវ",
+  };
 
   const handleLogin = async (e) => {
     e.preventDefault();
@@ -26,14 +44,14 @@ function LoginContent() {
 
       if (error) {
         // Show generic error message for security
-        setError("Invalid email or password");
+        setError(t.invalid);
       } else {
         // Redirect to home page after successful login
         router.push("/");
         router.refresh();
       }
     } catch (err) {
-      setError("Invalid email or password");
+      setError(t.invalid);
     } finally {
       setLoading(false);
     }
@@ -44,10 +62,10 @@ function LoginContent() {
       <Header />
       <main style={styles.wrap}>
         <div style={styles.header}>
-          <p style={styles.kicker}>KHMER LIVING ARCHIVE</p>
-          <h1 style={styles.title}>Login</h1>
+          <p style={styles.kicker}>{t.kicker}</p>
+          <h1 style={styles.title}>{t.title}</h1>
           <p style={styles.description}>
-            Sign in to access your account
+            {t.description}
           </p>
         </div>
 
@@ -59,7 +77,7 @@ function LoginContent() {
 
             <div style={styles.field}>
               <label htmlFor="email" style={styles.label}>
-                Email
+                {t.email}
               </label>
               <input
                 id="email"
@@ -75,7 +93,7 @@ function LoginContent() {
 
             <div style={styles.field}>
               <label htmlFor="password" style={styles.label}>
-                Password
+                {t.password}
               </label>
               <input
                 id="password"
@@ -94,19 +112,19 @@ function LoginContent() {
               style={styles.button}
               disabled={loading}
             >
-              {loading ? "Signing in..." : "Sign In"}
+              {loading ? t.signingIn : t.signIn}
             </button>
 
             <div style={styles.authFooter}>
               <p style={styles.footerText}>
-                Don't have an account?{" "}
+                {t.noAccount}{" "}
                 <a href="/signup" style={styles.link}>
-                  Sign up
+                  {t.signup}
                 </a>
               </p>
               <p style={styles.footerText}>
                 <a href="/" style={styles.link}>
-                  ← Back to home
+                  {t.backHome}
                 </a>
               </p>
             </div>
@@ -114,7 +132,9 @@ function LoginContent() {
         </div>
 
         <footer style={styles.footer}>
-          Built in ICT 340 — Vibe Coding, Archived Kites new thing.
+          {language === "en"
+            ? "Archived Kites — Preserving stories and memories, one kite at a time."
+            : "បណ្ណសារខ្លែង — រក្សាទុករឿងរ៉ាវ និងការចងចាំរបស់យើង។"}
         </footer>
       </main>
     </>

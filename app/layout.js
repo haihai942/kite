@@ -1,10 +1,11 @@
-import collection from "../collection.config.js";
+import collection, { pick } from "../collection.config.js";
 import { LanguageProvider } from "../contexts/language-context.js";
 import LanguageWrapper from "./language-wrapper.js";
 
+// Metadata is static (server-rendered), so use the English values here.
 export const metadata = {
-  title: `${collection.name} — Khmer Living Archive`,
-  description: collection.description,
+  title: `${pick(collection.name, "en")} — Khmer Living Archive`,
+  description: pick(collection.description, "en"),
 };
 
 export default function RootLayout({ children }) {

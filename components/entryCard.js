@@ -1,6 +1,25 @@
+"use client";
+
+import { useLanguage } from "../contexts/language-context.js";
+
+// Field labels for the card, translated for the active language. The Khmer
+// wording matches the labels used on the contribute/edit forms so the whole
+// site stays consistent when the toggle is switched to ខ្មែរ.
+const LABELS = {
+  title: { en: "TITLE", km: "ចំណងជើង" },
+  contributor: { en: "CONTRIBUTOR", km: "អ្នកចែករំលែក" },
+  place: { en: "PLACE", km: "ទីកន្លែង" },
+  description: { en: "DESCRIPTION", km: "ការពិពណ៌នា" },
+};
+
 // Component for displaying individual archive entries
 // Receives props: title, contributor, place, description, and image
 export default function EntryCard({ title, contributor, place, description, image }) {
+  const { language } = useLanguage();
+
+  // Pick the label for the active language, falling back to English.
+  const label = (key) => LABELS[key][language] || LABELS[key].en;
+
   // Styles for different parts of the card
   const cardStyle = {
     padding: 12,
@@ -68,16 +87,16 @@ export default function EntryCard({ title, contributor, place, description, imag
         </div>
       ) : null}
 
-      <p style={labelStyle}>TITLE</p>
+      <p style={labelStyle}>{label("title")}</p>
       <p style={valueStyle}>{title}</p>
 
-      <p style={labelStyle}>CONTRIBUTOR</p>
+      <p style={labelStyle}>{label("contributor")}</p>
       <p style={valueStyle}>{contributor}</p>
 
-      <p style={labelStyle}>PLACE</p>
+      <p style={labelStyle}>{label("place")}</p>
       <p style={valueStyle}>{place}</p>
 
-      <p style={labelStyle}>DESCRIPTION</p>
+      <p style={labelStyle}>{label("description")}</p>
       <p style={descriptionStyle}>{description}</p>
     </div>
   );

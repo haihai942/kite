@@ -3,7 +3,7 @@
 import { Suspense, useState, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Header from "../components/header.js";
-import collection from "../collection.config.js";
+import collection, { pick } from "../collection.config.js";
 import { createClient } from "../lib/supabase-client.js";
 import { useLanguage } from "../contexts/language-context.js";
 
@@ -50,7 +50,8 @@ function HomeContent() {
         setError(null);
       } catch (err) {
         console.error('Error fetching entries:', err?.message || JSON.stringify(err));
-        setError('Failed to load entries. Please try again later.');
+        // Store a language-neutral flag; the message is translated at render.
+        setError('failed');
         setEntries([]);
       } finally {
         setLoading(false);
@@ -72,10 +73,12 @@ function HomeContent() {
       <Header />
 
       <main style={styles.wrap}>
-        <p style={styles.kicker}>KHMER LIVING ARCHIVE</p>
-        <h1 style={styles.title}>{language === "en" ? collection.name : "ខ្លែង"}</h1>
+        <p style={styles.kicker}>
+          {language === "en" ? "KHMER LIVING ARCHIVE" : "ប័ណ្ណសាររស់រវើកខ្មែរ"}
+        </p>
+        <h1 style={styles.title}>{pick(collection.name, language)}</h1>
         <p style={styles.description}>
-          {collection.description}
+          {pick(collection.description, language)}
         </p>
 
         {loading ? (
@@ -84,7 +87,11 @@ function HomeContent() {
           </div>
         ) : error ? (
           <div style={styles.errorContainer}>
-            <p style={styles.errorText}>{error}</p>
+            <p style={styles.errorText}>
+              {language === "en"
+                ? "Failed to load entries. Please try again later."
+                : "មិនអាចផ្ទុកធាតុបានទេ។ សូមព្យាយាមម្តងទៀតនៅពេលក្រោយ។"}
+            </p>
           </div>
         ) : (
           <>
@@ -97,7 +104,9 @@ function HomeContent() {
             ) : (
               <div style={styles.entriesGrid}>
                 {entries.map((entry, index) => {
-                  const itemTitle = getEntryText(entry, 'title') || "Untitled";
+                  const itemTitle =
+                    getEntryText(entry, 'title') ||
+                    (language === "en" ? "Untitled" : "គ្មានចំណងជើង");
                   const imageUrl = getEntryImage(entry);
 
                   return (
@@ -117,7 +126,9 @@ function HomeContent() {
                         </div>
                       )}
                       <h2 style={styles.previewTitle}>{itemTitle}</h2>
-                      <span style={styles.detailBtn}>Click for more details →</span>
+                      <span style={styles.detailBtn}>
+                        {language === "en" ? "Click for more details →" : "ចុចដើម្បីមើលព័ត៌មានបន្ថែម →"}
+                      </span>
                     </div>
                   );
                 })}
@@ -127,20 +138,26 @@ function HomeContent() {
         )}
 
         <div style={styles.card}>
-          <p style={styles.cardLabel}>CURATED BY</p>
+          <p style={styles.cardLabel}>
+            {language === "en" ? "CURATED BY" : "រៀបចំដោយ"}
+          </p>
           <p style={styles.cardValue}>
-            {collection.curator}
+            {pick(collection.curator, language)}
           </p>
         </div>
         <div style={styles.card}>
-          <p style={styles.cardLabel}>SOURCE</p>
+          <p style={styles.cardLabel}>
+            {language === "en" ? "SOURCE" : "ប្រភព"}
+          </p>
           <p style={styles.cardValue}>
-            {collection.source}
+            {pick(collection.source, language)}
           </p>
         </div>
 
         <footer style={styles.footer}>
-          Built in ICT 340 — Vibe Coding, Archived Kites new thing.
+          {language === "en"
+            ? "Archived Kites — Preserving stories and memories, one kite at a time."
+            : "បណ្ណសារខ្លែង — រក្សាទុករឿងរ៉ាវ និងការចងចាំរបស់យើង។"}
         </footer>
       </main>
     </>

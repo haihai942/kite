@@ -61,7 +61,8 @@ function BrowseContent() {
         setError(null);
       } catch (err) {
         console.error('Error fetching entries:', err);
-        setError('Failed to load entries. Please try again later.');
+        // Store a language-neutral flag; the message is translated at render.
+        setError('failed');
         setEntries([]);
       } finally {
         setLoading(false);
@@ -118,7 +119,9 @@ function BrowseContent() {
 
       <main style={styles.wrap}>
         <div style={styles.header}>
-          <p style={styles.kicker}>KHMER LIVING ARCHIVE</p>
+          <p style={styles.kicker}>
+            {language === "en" ? "KHMER LIVING ARCHIVE" : "ប័ណ្ណសាររស់រវើកខ្មែរ"}
+          </p>
           <h1 style={styles.title}>{language === "en" ? "Browse" : "ការរុករក"}</h1>
 
           <p style={styles.description}>
@@ -140,15 +143,26 @@ function BrowseContent() {
           </div>
         ) : error ? (
           <div style={styles.errorContainer}>
-            <p style={styles.errorText}>{error}</p>
+            <p style={styles.errorText}>
+              {language === "en"
+                ? "Failed to load entries. Please try again later."
+                : "មិនអាចផ្ទុកធាតុបានទេ។ សូមព្យាយាមម្តងទៀតនៅពេលក្រោយ។"}
+            </p>
           </div>
         ) : entries.length === 0 ? (
           <div style={styles.emptyContainer}>
-            <p style={styles.emptyText}>No entries found in the archive.</p>
+            <p style={styles.emptyText}>
+              {language === "en"
+                ? "No entries found in the archive."
+                : "គ្មានធាតុណាមួយត្រូវបានរកឃើញនៅក្នុងប័ណ្ណសារ។"}
+            </p>
           </div>
         ) : (
           <>
-            <p style={styles.count}>entries in view: {displayEntries.length}</p>
+            <p style={styles.count}>
+              {language === "en" ? "entries in view: " : "ធាតុដែលកំពុងបង្ហាញ៖ "}
+              {displayEntries.length}
+            </p>
 
             <div style={styles.entriesGrid}>
               {displayEntries.map((entry, index) => {
@@ -161,11 +175,23 @@ function BrowseContent() {
                     style={{ textDecoration: 'none', color: 'inherit' }}
                   >
                     <EntryCard
-                      title={getText(entry, 'title') || "Untitled"}
-                      contributor={getText(entry, 'contributor') || "Unknown"}
-                      place={getText(entry, 'places') || "Unknown"}
+                      title={
+                        getText(entry, 'title') ||
+                        (language === "en" ? "Untitled" : "គ្មានចំណងជើង")
+                      }
+                      contributor={
+                        getText(entry, 'contributor') ||
+                        (language === "en" ? "Unknown" : "មិនស្គាល់")
+                      }
+                      place={
+                        getText(entry, 'places') ||
+                        (language === "en" ? "Unknown" : "មិនស្គាល់")
+                      }
                       description={
-                        getText(entry, 'description') || "No description available"
+                        getText(entry, 'description') ||
+                        (language === "en"
+                          ? "No description available"
+                          : "គ្មានការពិពណ៌នាទេ")
                       }
                       image={imageUrl}
                     />
@@ -177,7 +203,9 @@ function BrowseContent() {
         )}
 
         <footer style={styles.footer}>
-          Built in ICT 340 — Vibe Coding, Archived Kites new thing.
+          {language === "en"
+            ? "Archived Kites — Preserving stories and memories, one kite at a time."
+            : "បណ្ណសារខ្លែង — រក្សាទុករឿងរ៉ាវ និងការចងចាំរបស់យើង។"}
         </footer>
       </main>
     </>

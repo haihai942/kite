@@ -8,14 +8,141 @@ import { createClient } from "../../../lib/supabase-client.js";
 import { isUserReviewer } from "../../../lib/reviewer-auth.js";
 import { useLanguage } from "../../../contexts/language-context.js";
 
-// Default note saved to the entry when a reviewer approves it.
-const APPROVAL_NOTE = "Thank you for sharing your story with us!";
+// Default note saved to the entry when a reviewer approves it. The note is
+// stored on the entry, so it is written in the active language at the moment
+// the reviewer approves.
+const APPROVAL_NOTE = {
+  en: "Thank you for sharing your story with us!",
+  km: "សូមអរគុណសម្រាប់ការចែករំលែករឿងរ៉ាវរបស់អ្នកជាមួយយើង!",
+};
+
+// Status badge labels, translated for the active language. The Khmer wording
+// matches the labels used on the my-entries and reviewer-queue pages so the
+// whole site stays consistent when the toggle is switched to ខ្មែរ.
+const STATUS_LABELS = {
+  pending: { en: "Pending", km: "កំពុងរង់ចាំការពិនិត្យ" },
+  published: { en: "Published", km: "ត្រូវបានចែករំលែក" },
+  returned: { en: "Returned", km: "ត្រូវតម្រូវឱ្យកែសម្រួលវិញ" },
+};
+
+// Pick a label for the active language, falling back to English.
+function pickLabel(labels, language) {
+  return labels[language] || labels.en;
+}
+
+// UI text for the entry detail page, keyed by language.
+const TEXTS = {
+  kicker: { en: "KHMER LIVING ARCHIVE", km: "ប័ណ្ណសាររស់រវើកខ្មែរ" },
+  loading: { en: "Loading entry...", km: "កំពុងផ្ទុកធាតុ..." },
+  backToArchive: { en: "Back to the archive", km: "ត្រឡប់ទៅប័ណ្ណសារ" },
+  notFound: { en: "This entry could not be found.", km: "រកមិនឃើញធាតុនេះទេ។" },
+  untitled: { en: "Untitled Entry", km: "ធាតុគ្មានចំណងជើង" },
+  unknownContributor: { en: "Unknown contributor", km: "អ្នកចូលរួមមិនស្គាល់" },
+  entryManagement: { en: "Entry Management", km: "ការគ្រប់គ្រងធាតុ" },
+  ownerSubtitle: { en: "You are the owner of this entry", km: "អ្នកគឺជាម្ចាស់ធាតុនេះ" },
+  editEntry: { en: "Edit Entry", km: "កែសម្រួលធាតុ" },
+  deleteEntry: { en: "Delete Entry", km: "លុបធាតុ" },
+  deleting: { en: "Deleting...", km: "កំពុងលុប..." },
+  reviewerActions: { en: "Reviewer Actions", km: "សកម្មភាពអ្នកពិនិត្យ" },
+  reviewerSubtitle: {
+    en: "Approve to publish this entry, or return it for edits.",
+    km: "អនុម័តដើម្បីផ្សព្វផ្សាយធាតុនេះ ឬត្រឡប់វាវិញដើម្បីកែសម្រួល។",
+  },
+  processing: { en: "Processing...", km: "កំពុងដំណើរការ..." },
+  approve: { en: "Approve", km: "អនុម័ត" },
+  return: { en: "Return", km: "ត្រឡប់វិញ" },
+  description: { en: "DESCRIPTION", km: "ការពិពណ៌នា" },
+  noDescription: { en: "No description available.", km: "គ្មានការពិពណ៌នាទេ។" },
+  reviewerNote: { en: "Reviewer Note", km: "កំណត់សម្គាល់អ្នកពិនិត្យ" },
+  deleteModalTitle: { en: "Delete Entry", km: "លុបធាតុ" },
+  deleteModalText: {
+    en: "Are you sure you want to delete this entry? This action cannot be undone.",
+    km: "តើអ្នកប្រាកដថាចង់លុបធាតុនេះឬ? សកម្មភាពនេះមិនអាចត្រឡប់វិញបានទេ។",
+  },
+  cancel: { en: "Cancel", km: "បោះបង់" },
+  delete: { en: "Delete", km: "លុប" },
+  returnModalTitle: { en: "Return for Edits", km: "ត្រឡប់វិញដើម្បីកែសម្រួល" },
+  returnModalText: {
+    en: "Tell the contributor what needs to change. This note is saved with the entry.",
+    km: "ប្រាប់អ្នកចូលរួមថាតើត្រូវកែអ្វីខ្លះ។ កំណត់សម្គាល់នេះត្រូវបានរក្សាទុកជាមួយធាតុ។",
+  },
+  returnPlaceholder: {
+    en: "e.g. Please add the Khmer title and a clearer photo.",
+    km: "ឧ. សូមបន្ថែមចំណងជើងជាភាសាខ្មែរ និងរូបថតច្បាស់ជាងនេះ។",
+  },
+  returning: { en: "Returning...", km: "កំពុងត្រឡប់វិញ..." },
+  returnEntry: { en: "Return Entry", km: "ត្រឡប់ធាតុវិញ" },
+  footer: {
+    en: "Archived Kites — Preserving stories and memories, one kite at a time.",
+    km: "បណ្ណសារខ្លែង — រក្សាទុករឿងរ៉ាវ និងការចងចាំរបស់យើង។",
+  },
+};
+
+// Read a translated string for the active language, falling back to English.
+function text(key, language) {
+  const entry = TEXTS[key];
+  if (!entry) return key;
+  return entry[language] || entry.en;
+}
 
 function EntryContent() {
   const { id } = useParams();
   const searchParams = useSearchParams();
   const { language } = useLanguage();
   const router = useRouter();
+
+  // Inline EN/KM dictionary for the entry detail page. Reading `language` on
+  // every render keeps these labels in sync the moment the toggle flips.
+  const t = {
+    kicker: language === "en" ? "KHMER LIVING ARCHIVE" : "ប័ណ្ណសាររស់រវើកខ្មែរ",
+    loadingEntry: language === "en" ? "Loading entry..." : "កំពុងផ្ទុកធាតុ...",
+    backToArchive: language === "en" ? "Back to the archive" : "ត្រឡប់ទៅប័ណ្ណសារ",
+    notFound: language === "en" ? "This entry could not be found." : "រកមិនឃើញធាតុនេះទេ។",
+    untitled: language === "en" ? "Untitled Entry" : "ធាតុគ្មានចំណងជើង",
+    unknownContributor: language === "en" ? "Unknown contributor" : "អ្នកចែករំលែកមិនស្គាល់",
+    entryManagement: language === "en" ? "Entry Management" : "ការគ្រប់គ្រងធាតុ",
+    ownerNote: language === "en" ? "You are the owner of this entry" : "អ្នកគឺជាម្ចាស់ធាតុនេះ",
+    editEntry: language === "en" ? "Edit Entry" : "កែសម្រួលធាតុ",
+    deleteEntry: language === "en" ? "Delete Entry" : "លុបធាតុ",
+    deleting: language === "en" ? "Deleting..." : "កំពុងលុប...",
+    reviewerActions: language === "en" ? "Reviewer Actions" : "សកម្មភាពអ្នកពិនិត្យ",
+    reviewerHint: language === "en"
+      ? "Approve to publish this entry, or return it for edits."
+      : "អនុម័តដើម្បីផ្សព្វផ្សាយធាតុនេះ ឬត្រឡប់វាវិញសម្រាប់ការកែសម្រួល។",
+    processing: language === "en" ? "Processing..." : "កំពុងដំណើរការ...",
+    approve: language === "en" ? "Approve" : "អនុម័ត",
+    return: language === "en" ? "Return" : "ត្រឡប់វិញ",
+    description: language === "en" ? "DESCRIPTION" : "ការពិពណ៌នា",
+    noDescription: language === "en" ? "No description available." : "គ្មានការពិពណ៌នាទេ។",
+    reviewerNote: language === "en" ? "Reviewer Note" : "កំណត់សម្គាល់របស់អ្នកពិនិត្យ",
+    deleteTitle: language === "en" ? "Delete Entry" : "លុបធាតុ",
+    deleteConfirm: language === "en"
+      ? "Are you sure you want to delete this entry? This action cannot be undone."
+      : "តើអ្នកប្រាកដជាចង់លុបធាតុនេះមែនទេ? សកម្មភាពនេះមិនអាចត្រឡប់វិញបានទេ។",
+    cancel: language === "en" ? "Cancel" : "បោះបង់",
+    delete: language === "en" ? "Delete" : "លុប",
+    returnTitle: language === "en" ? "Return for Edits" : "ត្រឡប់វិញសម្រាប់ការកែសម្រួល",
+    returnHint: language === "en"
+      ? "Tell the contributor what needs to change. This note is saved with the entry."
+      : "ប្រាប់អ្នកចែករំលែកថាតើត្រូវកែអ្វី។ កំណត់សម្គាល់នេះត្រូវបានរក្សាទុកជាមួយធាតុ។",
+    returnPlaceholder: language === "en"
+      ? "e.g. Please add the Khmer title and a clearer photo."
+      : "ឧ. សូមបន្ថែមចំណងជើងជាភាសាខ្មែរ និងរូបថតច្បាស់ជាងនេះ។",
+    returning: language === "en" ? "Returning..." : "កំពុងត្រឡប់វិញ...",
+    returnEntry: language === "en" ? "Return Entry" : "ត្រឡប់ធាតុវិញ",
+    reasonRequired: language === "en"
+      ? "Please enter a reason so the contributor knows what to fix."
+      : "សូមបញ្ចូលមូលហេតុ ដើម្បីឱ្យអ្នកចែករំលែកដឹងថាត្រូវកែអ្វី។",
+    reviewFailed: language === "en"
+      ? "Failed to save the review. Please try again."
+      : "មិនអាចរក្សាទុកការពិនិត្យបានទេ។ សូមព្យាយាមម្តងទៀត។",
+    deleteFailed: language === "en"
+      ? "Failed to delete entry. Please try again."
+      : "មិនអាចលុបធាតុបានទេ។ សូមព្យាយាមម្តងទៀត។",
+    loadFailed: language === "en"
+      ? "We couldn't load this entry. Please try again."
+      : "យើងមិនអាចផ្ទុកធាតុនេះបានទេ។ សូមព្យាយាមម្តងទៀត។",
+  };
 
   const [entry, setEntry] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -90,7 +217,8 @@ function EntryContent() {
         if (active) setEntry(data);
       } catch (err) {
         console.error("Error fetching entry:", err);
-        if (active) setError("We couldn't load this entry. Please try again.");
+        // Store a language-neutral flag; the message is translated at render.
+        if (active) setError("failed");
       } finally {
         if (active) setLoading(false);
       }
@@ -100,16 +228,9 @@ function EntryContent() {
     };
   }, [id]);
 
-  const title = getText("title") || "Untitled Entry";
-  const contributor = getText("contributor") || "Unknown contributor";
+  const title = getText("title") || (language === "en" ? "Untitled Entry" : "ធាតុគ្មានចំណងជើង");
+  const contributor = getText("contributor") || (language === "en" ? "Unknown contributor" : "អ្នកចែករំលែកមិនស្គាល់");
   const place = getText("places");
-
-  // Status badge configuration
-  const STATUS_LABELS = {
-    pending: { en: "Pending", km: "កំពុងរង់ចាំការពិនិត្យ" },
-    published: { en: "Published", km: "ត្រូវបានចែករំលែក" },
-    returned: { en: "Returned", km: "ត្រូវតម្រូវឱ្យកែសម្រួលវិញ" },
-  };
 
   const getStatusText = (status) => {
     const label = STATUS_LABELS[status] || STATUS_LABELS.pending;
@@ -152,7 +273,11 @@ function EntryContent() {
       router.push("/browse");
     } catch (err) {
       console.error("Error deleting entry:", err);
-      alert("Failed to delete entry. Please try again.");
+      alert(
+        language === "en"
+          ? "Failed to delete entry. Please try again."
+          : "មិនអាចលុបធាតុបានទេ។ សូមព្យាយាមម្តងទៀត។"
+      );
       setDeleting(false);
     }
   };
@@ -180,7 +305,11 @@ function EntryContent() {
       setEntry((prev) => (prev ? { ...prev, status: decision, review_note: noteText || null } : prev));
     } catch (err) {
       console.error("Error reviewing entry:", err);
-      setReviewError("Failed to save the review. Please try again.");
+      setReviewError(
+        language === "en"
+          ? "Failed to save the review. Please try again."
+          : "មិនអាចរក្សាទុកការពិនិត្យបានទេ។ សូមព្យាយាមម្តងទៀត។"
+      );
     } finally {
       setReviewProcessing(false);
     }
@@ -200,7 +329,11 @@ function EntryContent() {
   const handleReturnConfirm = async () => {
     const trimmedReason = returnReason.trim();
     if (!trimmedReason) {
-      setReviewError("Please enter a reason so the contributor knows what to fix.");
+      setReviewError(
+        language === "en"
+          ? "Please enter a reason so the contributor knows what to fix."
+          : "សូមបញ្ចូលហេតុផល ដើម្បីឱ្យអ្នកចូលរួមដឹងថាត្រូវកែអ្វី។"
+      );
       return;
     }
     await submitReview("returned", trimmedReason);
@@ -216,9 +349,13 @@ function EntryContent() {
       <Header />
       <main style={styles.wrap}>
         <div style={styles.header}>
-          <p style={styles.kicker}>KHMER LIVING ARCHIVE</p>
+          <p style={styles.kicker}>
+            {language === "en" ? "KHMER LIVING ARCHIVE" : "ប័ណ្ណសាររស់រវើកខ្មែរ"}
+          </p>
           <div style={styles.titleRow}>
-            <h1 style={styles.title}>{loading ? "Entry" : title}</h1>
+            <h1 style={styles.title}>
+              {loading ? (language === "en" ? "Entry" : "ធាតុ") : title}
+            </h1>
             {!loading && !error && entry && (
               <span style={getStatusBadgeStyle(entry.status || 'pending')}>
                 {getStatusText(entry.status || 'pending')}
@@ -339,7 +476,9 @@ function EntryContent() {
         )}
 
         <footer style={styles.footer}>
-          Built in ICT 340 — Vibe Coding, Archived Kites new thing.
+          {language === "en"
+            ? "Archived Kites — Preserving stories and memories, one kite at a time."
+            : "បណ្ណសារខ្លែង — រក្សាទុករឿងរ៉ាវ និងការចងចាំរបស់យើង។"}
         </footer>
 
         {/* Delete Confirmation Modal */}
