@@ -1,3 +1,4 @@
+import "./globals.css";
 import collection, { pick } from "../collection.config.js";
 import { LanguageProvider } from "../contexts/language-context.js";
 import LanguageWrapper from "./language-wrapper.js";

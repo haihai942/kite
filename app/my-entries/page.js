@@ -80,7 +80,9 @@ const styles = {
   wrap: {
     width: "100%",
     margin: 0,
-    padding: "40px 32px 80px",
+    // Side/top padding is responsive and lives in app/globals.css (.page-wrap):
+    // 32px on desktop, 16px on phones, so cards are never squeezed or pushed
+    // off-screen. Removing it here lets the class win over inline styles.
     boxSizing: "border-box",
   },
   kicker: { fontFamily: "'Courier New', monospace", color: "#1E40AF", fontSize: 14, fontWeight: 600, letterSpacing: 1 },
@@ -391,7 +393,7 @@ function MyEntriesContent() {
     return (
       <>
         <Header />
-        <main style={styles.wrap}>
+        <main className="page-wrap" style={styles.wrap}>
           <div style={styles.loadingContainer}>
             <p style={styles.loadingText}>{t.loading}</p>
           </div>
@@ -404,7 +406,7 @@ function MyEntriesContent() {
     return (
       <>
         <Header />
-        <main style={styles.wrap}>
+        <main className="page-wrap" style={styles.wrap}>
           <p style={styles.kicker}>{t.kicker}</p>
           <h1 style={styles.title}>{t.title}</h1>
           <div style={styles.card}>
@@ -427,7 +429,7 @@ function MyEntriesContent() {
   return (
     <>
       <Header />
-      <main style={styles.wrap}>
+      <main className="page-wrap" style={styles.wrap}>
         <p style={styles.kicker}>{t.kicker}</p>
         <div style={styles.titleRow}>
           <h1 style={styles.title}>{t.title}</h1>

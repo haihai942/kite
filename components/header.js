@@ -241,6 +241,10 @@ const styles = {
     display: "flex",
     gap: 16,
     alignItems: "center",
+    flexWrap: "wrap",
+    // Keeps the nav compact on phones: when the links no longer fit on one
+    // row, the whole row wraps between links instead of squeezing each one.
+    rowGap: 8,
   },
   link: {
     fontSize: 15,
@@ -248,6 +252,8 @@ const styles = {
     color: "#1E40AF",
     textDecoration: "none",
     lineHeight: "36px",
+    // Never break a label mid-phrase (e.g. "My Entries" must stay on one line).
+    whiteSpace: "nowrap",
   },
   searchForm: {
     display: "flex",
@@ -318,6 +324,8 @@ const styles = {
     color: "#1E40AF",
     textDecoration: "none",
     lineHeight: "36px",
+    // Same rule as the nav links: keep each label on a single line.
+    whiteSpace: "nowrap",
   },
   langButton: {
     padding: "0 12px",

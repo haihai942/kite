@@ -127,7 +127,7 @@ function BrowseContent() {
     <>
       <Header />
 
-      <main style={styles.wrap}>
+      <main className="page-wrap" style={styles.wrap}>
         <div style={styles.header}>
           <p style={styles.kicker}>
             {language === "en" ? "KHMER LIVING ARCHIVE" : "ប័ណ្ណសាររស់រវើកខ្មែរ"}
@@ -174,7 +174,7 @@ function BrowseContent() {
               {displayEntries.length}
             </p>
 
-            <div style={styles.entriesGrid}>
+            <div className="entries-grid" style={styles.entriesGrid}>
               {displayEntries.map((entry, index) => {
                 const imageUrl = getEntryImage(entry);
 
@@ -241,7 +241,9 @@ const styles = {
   wrap: {
     width: "100%",
     margin: 0,
-    padding: "40px 32px 80px",
+    // Side/top padding is responsive and lives in app/globals.css (.page-wrap):
+    // 32px on desktop, 16px on phones, so cards are never squeezed or pushed
+    // off-screen. Removing it here lets the class win over inline styles.
     boxSizing: "border-box",
   },
   header: {
@@ -286,8 +288,10 @@ const styles = {
     fontStyle: "italic",
   },
   entriesGrid: {
+    // Column count is responsive and lives in app/globals.css (.entries-grid):
+    // 1 column on phones, widening to 3 on desktop. Only the shared bits stay
+    // inline here.
     display: "grid",
-    gridTemplateColumns: "repeat(3, 1fr)",
     gap: 16,
   },
   errorContainer: {

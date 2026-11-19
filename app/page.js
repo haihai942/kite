@@ -83,7 +83,7 @@ function HomeContent() {
     <>
       <Header />
 
-      <main style={styles.wrap}>
+      <main className="page-wrap" style={styles.wrap}>
         <p style={styles.kicker}>
           {language === "en" ? "KHMER LIVING ARCHIVE" : "ប័ណ្ណសាររស់រវើកខ្មែរ"}
         </p>
@@ -113,7 +113,7 @@ function HomeContent() {
                 <p style={styles.emptyText}>{language === "en" ? "No entries found in the archive." : "គ្មានធាតុណាមួយត្រូវបានរកឃើញនៅក្នុងប័ណ្ណសារ។"}</p>
               </div>
             ) : (
-              <div style={styles.entriesGrid}>
+              <div className="entries-grid" style={styles.entriesGrid}>
                 {entries.map((entry, index) => {
                   const itemTitle =
                     getEntryText(entry, 'title') ||
@@ -198,7 +198,9 @@ const styles = {
   wrap: {
     width: "100%",
     margin: 0,
-    padding: "40px 32px 80px",
+    // Side/top padding is responsive and lives in app/globals.css (.page-wrap):
+    // 32px on desktop, 16px on phones, so cards are never squeezed or pushed
+    // off-screen. Removing it here lets the class win over inline styles.
     boxSizing: "border-box",
   },
   kicker: {
@@ -266,8 +268,10 @@ const styles = {
     transition: "transform 0.15s ease, boxShadow 0.15s ease",
   },
   entriesGrid: {
+    // Column count is responsive and lives in app/globals.css (.entries-grid):
+    // 1 column on phones, widening to 3 on desktop. Only the shared bits stay
+    // inline here.
     display: "grid",
-    gridTemplateColumns: "repeat(3, 1fr)",
     gap: 16,
   },
   imageWrapper: {

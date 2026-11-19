@@ -1,0 +1,48 @@
+/*
+ * Global responsive helpers for the archive.
+ *
+ * These exist because page-level styles in this project are inline style
+ * objects, and inline styles cannot carry @media queries. Anything that has
+ * to change at a breakpoint therefore lives here and is applied with a
+ * className, while everything else stays inline as before.
+ */
+
+/* Page shell. The inline `wrap` style pads every side by 32px, which is too
+   wide on a phone and can push content past the viewport edge. These classes
+   keep the desktop padding but use a tighter, safe padding on small screens.
+   box-sizing/max-width guard against horizontal overflow. */
+.page-wrap {
+  padding: 40px 32px 80px;
+  box-sizing: border-box;
+  max-width: 100%;
+  overflow-x: hidden;
+}
+
+/* Entry grids (home page and browse page).
+   Mobile-first: one column on phones, so a card fills the width and is never
+   squeezed. Wider screens widen out again, ending at the original 3 columns. */
+.entries-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 16px;
+}
+
+@media (min-width: 640px) {
+  .entries-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (min-width: 1024px) {
+  .entries-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+/* Tighten the page padding on phones so cards get the full card width and no
+   content is pushed off the right edge. */
+@media (max-width: 639px) {
+  .page-wrap {
+    padding: 24px 16px 56px;
+  }
+}
