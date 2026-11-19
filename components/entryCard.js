@@ -1,6 +1,7 @@
 "use client";
 
 import { useLanguage } from "../contexts/language-context.js";
+import { fallbackLanguageLabel } from "../lib/entry-text.js";
 
 // Field labels for the card, translated for the active language. The Khmer
 // wording matches the labels used on the contribute/edit forms so the whole
@@ -12,16 +13,9 @@ const LABELS = {
   description: { en: "DESCRIPTION", km: "ការពិពណ៌នា" },
 };
 
-// Component for displaying individual archive entries
-// Receives props: title, contributor, place, description, and image
-export default function EntryCard({ title, contributor, place, description, image }) {
-  const { language } = useLanguage();
-
-  // Pick the label for the active language, falling back to English.
-  const label = (key) => LABELS[key][language] || LABELS[key].en;
-
-  // Styles for different parts of the card
-  const cardStyle = {
+// Card styles are static, so they live at module scope.
+const styles = {
+  card: {
     padding: 12,
     backgroundColor: "#FFFFFF",
     borderWidth: "1px",
@@ -30,32 +24,36 @@ export default function EntryCard({ title, contributor, place, description, imag
     borderRadius: 10,
     boxSizing: "border-box",
     height: "100%",
-  };
-
-  const labelStyle = {
+  },
+  label: {
     fontFamily: "'Courier New', monospace",
     fontSize: 11,
     color: "#1E40AF",
     fontWeight: 600,
     marginBottom: 4,
-  };
-
-  const valueStyle = {
+  },
+  value: {
     fontSize: 13,
     lineHeight: 1.5,
     marginBottom: 10,
     color: "#1E3A8A",
     wordBreak: "break-word",
-  };
-
-  const descriptionStyle = {
+  },
+  description: {
     fontSize: 13,
     lineHeight: 1.5,
     color: "#1E3A8A",
     wordBreak: "break-word",
-  };
-
-  const imageWrapStyle = {
+  },
+  // Subtle hint shown when a field's text was borrowed from the other language.
+  hint: {
+    fontSize: 11,
+    color: "#94A3B8",
+    fontStyle: "italic",
+    marginTop: -6,
+    marginBottom: 10,
+  },
+  imageWrap: {
     marginBottom: 12,
     overflow: "hidden",
     borderRadius: 8,
@@ -63,41 +61,74 @@ export default function EntryCard({ title, contributor, place, description, imag
     borderStyle: "solid",
     borderColor: "#93C5FD",
     backgroundColor: "#F1F5F9",
-  };
-
-  const imageStyle = {
+  },
+  image: {
     display: "block",
     width: "100%",
     height: "auto",
     maxHeight: 150,
     objectFit: "cover",
+  },
+};
+
+// Component for displaying individual archive entries.
+// Receives props: title, contributor, place, description, image, plus optional
+// `*Fallback` booleans that flag values borrowed from the other language.
+export default function EntryCard({
+  title,
+  contributor,
+  place,
+  description,
+  image,
+  titleFallback,
+  contributorFallback,
+  placeFallback,
+  descriptionFallback,
+}) {
+  const { language } = useLanguage();
+
+  // Pick the label for the active language, falling back to English.
+  const label = (key) => LABELS[key][language] || LABELS[key].en;
+
+  // Subtle hint shown under a field whose text came from the other language,
+  // e.g. "shown in English" while browsing in Khmer. "" when not borrowed.
+  const hint = (isFallback) => {
+    if (!isFallback) return "";
+    const from = language === "en" ? "km" : "en";
+    const name = fallbackLanguageLabel(from, language);
+    return language === "en" ? `shown in ${name}` : `បង្ហាញជា${name}`;
   };
 
+  // The four bilingual fields in display order. `style` keeps the description
+  // flush (no bottom margin) as before; `borrowed` drives the fallback hint.
+  const fields = [
+    { key: "title", text: title, borrowed: titleFallback, style: styles.value },
+    { key: "contributor", text: contributor, borrowed: contributorFallback, style: styles.value },
+    { key: "place", text: place, borrowed: placeFallback, style: styles.value },
+    { key: "description", text: description, borrowed: descriptionFallback, style: styles.description },
+  ];
+
   return (
-    <div style={cardStyle}>
+    <div style={styles.card}>
       {image ? (
-        <div style={imageWrapStyle}>
+        <div style={styles.imageWrap}>
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src={image}
             alt={title ? `Image for ${title}` : "Entry image"}
             loading="lazy"
-            style={imageStyle}
+            style={styles.image}
           />
         </div>
       ) : null}
 
-      <p style={labelStyle}>{label("title")}</p>
-      <p style={valueStyle}>{title}</p>
-
-      <p style={labelStyle}>{label("contributor")}</p>
-      <p style={valueStyle}>{contributor}</p>
-
-      <p style={labelStyle}>{label("place")}</p>
-      <p style={valueStyle}>{place}</p>
-
-      <p style={labelStyle}>{label("description")}</p>
-      <p style={descriptionStyle}>{description}</p>
+      {fields.map((field) => (
+        <div key={field.key}>
+          <p style={styles.label}>{label(field.key)}</p>
+          <p style={field.style}>{field.text}</p>
+          {hint(field.borrowed) && <p style={styles.hint}>{hint(field.borrowed)}</p>}
+        </div>
+      ))}
     </div>
   );
 }

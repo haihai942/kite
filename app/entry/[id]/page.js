@@ -7,6 +7,7 @@ import Header from "../../../components/header.js";
 import { createClient } from "../../../lib/supabase-client.js";
 import { isUserReviewer } from "../../../lib/reviewer-auth.js";
 import { useLanguage } from "../../../contexts/language-context.js";
+import { pickEntryText, fallbackLanguageLabel } from "../../../lib/entry-text.js";
 
 // Default note saved to the entry when a reviewer approves it. The note is
 // stored on the entry, so it is written in the active language at the moment
@@ -158,10 +159,21 @@ function EntryContent() {
   const [returnReason, setReturnReason] = useState("");
   const [reviewError, setReviewError] = useState(null);
 
-  // Read text for the active language, falling back to English.
-  const getText = (fieldPrefix) => {
-    if (!entry) return "";
-    return entry[`${fieldPrefix}_${language}`] || entry[`${fieldPrefix}_en`] || "";
+  // Resolve a bilingual field for the active language, falling back to the
+  // other language when this one is empty. Returns { text, isFallback }.
+  const getField = (fieldPrefix) => pickEntryText(entry, fieldPrefix, language);
+
+  // Read just the text for a field (active language, else the other language).
+  const getText = (fieldPrefix) => getField(fieldPrefix).text;
+
+  // A subtle "shown in <language>" hint, but only when the value was borrowed
+  // from the other language. Empty string otherwise so it renders as nothing.
+  const fallbackHint = (fieldPrefix) => {
+    const { text, isFallback } = getField(fieldPrefix);
+    if (!text || !isFallback) return "";
+    const from = language === "en" ? "km" : "en";
+    const name = fallbackLanguageLabel(from, language);
+    return language === "en" ? `shown in ${name}` : `បង្ហាញជា${name}`;
   };
 
   // Build an image src: submitted entries store a public storage URL,
@@ -362,10 +374,19 @@ function EntryContent() {
               </span>
             )}
           </div>
+          {!loading && !error && entry && fallbackHint("title") && (
+            <p style={styles.fallbackHint}>{fallbackHint("title")}</p>
+          )}
           {!loading && !error && entry && (
             <p style={styles.meta}>
               {contributor}
               {place ? ` • ${place}` : ""}
+              {fallbackHint("contributor") || fallbackHint("places") ? (
+                <span style={styles.metaHint}>
+                  {" "}
+                  ({fallbackHint("contributor") || fallbackHint("places")})
+                </span>
+              ) : null}
             </p>
           )}
         </div>
@@ -460,6 +481,9 @@ function EntryContent() {
 
             <div style={styles.card}>
               <p style={styles.label}>DESCRIPTION</p>
+              {fallbackHint("description") && (
+                <p style={styles.fallbackHint}>{fallbackHint("description")}</p>
+              )}
               <p style={styles.text}>
                 {getText("description") || "No description available."}
               </p>
@@ -633,6 +657,19 @@ const styles = {
     color: "#3B82F6",
     lineHeight: 1.5,
     margin: 0,
+  },
+  // Subtle hint shown when a field's text was borrowed from the other language
+  // because the active language had no value for it.
+  fallbackHint: {
+    fontSize: 12,
+    color: "#94A3B8",
+    fontStyle: "italic",
+    margin: "4px 0 0",
+  },
+  metaHint: {
+    fontSize: 12,
+    color: "#94A3B8",
+    fontStyle: "italic",
   },
   // Owner actions styles
   actionsCard: {

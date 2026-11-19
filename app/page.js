@@ -6,6 +6,7 @@ import Header from "../components/header.js";
 import collection, { pick } from "../collection.config.js";
 import { createClient } from "../lib/supabase-client.js";
 import { useLanguage } from "../contexts/language-context.js";
+import { pickEntryText, fallbackLanguageLabel } from "../lib/entry-text.js";
 
 function HomeContent() {
   const router = useRouter();
@@ -17,11 +18,21 @@ function HomeContent() {
   // Always read active language directly from URL search params
   const { language } = useLanguage();
 
-  // Helper function to get text for the active language for flat structure
+  // Helper function to get text for the active language for flat structure,
+  // falling back to the other language when this one is empty.
   const getEntryText = (entry, fieldPrefix) => {
     if (!entry) return "";
-    const field = entry[`${fieldPrefix}_${language}`] || entry[`${fieldPrefix}_en`];
-    return field || "";
+    return pickEntryText(entry, fieldPrefix, language).text;
+  };
+
+  // Subtle "shown in <language>" hint when a value was borrowed from the other
+  // language. Returns "" when the active language had its own value.
+  const fallbackHint = (entry, fieldPrefix) => {
+    const { text, isFallback } = pickEntryText(entry, fieldPrefix, language);
+    if (!text || !isFallback) return "";
+    const from = language === "en" ? "km" : "en";
+    const name = fallbackLanguageLabel(from, language);
+    return language === "en" ? `shown in ${name}` : `បង្ហាញជា${name}`;
   };
 
   // Build an image src: new entries store a public storage URL,
@@ -126,6 +137,11 @@ function HomeContent() {
                         </div>
                       )}
                       <h2 style={styles.previewTitle}>{itemTitle}</h2>
+                      {fallbackHint(entry, 'title') && (
+                        <p style={styles.fallbackHint}>
+                          {fallbackHint(entry, 'title')}
+                        </p>
+                      )}
                       <span style={styles.detailBtn}>
                         {language === "en" ? "Click for more details →" : "ចុចដើម្បីមើលព័ត៌មានបន្ថែម →"}
                       </span>
@@ -267,6 +283,13 @@ const styles = {
     margin: 0,
     lineHeight: 1.3,
     wordBreak: "break-word",
+  },
+  // Subtle hint shown when a card's title was borrowed from the other language.
+  fallbackHint: {
+    fontSize: 11,
+    color: "#94A3B8",
+    fontStyle: "italic",
+    margin: "4px 0 0",
   },
   detailBtn: {
     alignSelf: "flex-start",

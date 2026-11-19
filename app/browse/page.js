@@ -8,6 +8,7 @@ import { createClient } from "../../lib/supabase-client.js";
 import collection from "../../collection.config.js";
 import EntryCard from "../../components/entryCard.js";
 import { useLanguage } from "../../contexts/language-context.js";
+import { pickEntryText } from "../../lib/entry-text.js";
 
 function BrowseContent() {
   const searchParams = useSearchParams();
@@ -18,12 +19,21 @@ function BrowseContent() {
   const query = searchParams.get("q") || "";
   const { language } = useLanguage();
 
-  // Helper function to get text for the active language for flat structure
+  // Helper function to get text for the active language for flat structure,
+  // falling back to the other language when this one is empty.
   const getText = (entry, fieldPrefix) => {
     if (!entry) return "";
-    const field = entry[`${fieldPrefix}_${language}`] || entry[`${fieldPrefix}_en`];
-    return field || "";
+    return pickEntryText(entry, fieldPrefix, language).text;
   };
+
+  // Which of the card's fields had to borrow text from the other language.
+  // EntryCard uses this to show a subtle "shown in …" hint per field.
+  const fallbackFlags = (entry) => ({
+    titleFallback: pickEntryText(entry, "title", language).isFallback,
+    contributorFallback: pickEntryText(entry, "contributor", language).isFallback,
+    placeFallback: pickEntryText(entry, "places", language).isFallback,
+    descriptionFallback: pickEntryText(entry, "description", language).isFallback,
+  });
 
   // Build an image src: new entries store a public storage URL,
   // older entries store a local filename served by /api/images/.
@@ -194,6 +204,7 @@ function BrowseContent() {
                           : "គ្មានការពិពណ៌នាទេ")
                       }
                       image={imageUrl}
+                      {...fallbackFlags(entry)}
                     />
                   </Link>
                 );

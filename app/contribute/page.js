@@ -63,6 +63,49 @@ function charCount(str) {
   return [...(str || "")].length;
 }
 
+// The four text fields, each in both languages.
+const FIELD_BASES = ["title", "contributor", "places", "description"];
+
+// Fields that render as a <textarea> rather than a single-line <input>.
+function isLongField(field) {
+  return field.startsWith("description");
+}
+
+// The active language's title and description are required; their translations
+// are optional. Contributor and place stay optional in both languages.
+function isRequiredField(field, language) {
+  return field === `title_${language}` || field === `description_${language}`;
+}
+
+// The form keeps a fixed field order (English first, then Khmer). Only the
+// `*` badge and the required-field validation follow the active language.
+const FIELD_ORDER = FIELD_BASES.flatMap((base) => [
+  `${base}_en`,
+  `${base}_km`,
+]);
+
+// Example placeholder text for each field, in both languages.
+const PLACEHOLDERS = {
+  title: {
+    en: "e.g. My First Bamboo Kite",
+    km: "ឧ. ខ្លែងឫស្សីដំបូងរបស់ខ្ញុំ",
+  },
+  contributor: { en: "e.g. My Grandma", km: "ឧ. យាយរបស់ខ្ញុំ" },
+  places: { en: "e.g. Siem Reap", km: "ឧ. សៀមរាប" },
+  description: {
+    en: "Tell the story behind this kite...",
+    km: "រៀបរាប់រឿងរ៉ាវរបស់ខ្លែងនេះ...",
+  },
+};
+
+// Placeholder text for a field, in the active language.
+function fieldPlaceholder(field, language) {
+  const base = field.replace(/_(en|km)$/, "");
+  const options = PLACEHOLDERS[base];
+  if (!options) return "";
+  return options[language] || options.en;
+}
+
 function trimValues(values) {
   const trimmed = {};
   Object.keys(values).forEach((key) => {
@@ -82,41 +125,44 @@ function validate(values, photos, language = "en") {
   const errors = {};
   const en = language === "en";
 
-  // Title (English): required, max 30 chars, not blank spaces or symbols only.
-  if (!values.title_en) {
-    errors.title_en = en
-      ? "Title (English) is required."
-      : "តម្រូវឱ្យបំពេញចំណងជើង (អង់គ្លេស)។";
-  } else if (charCount(values.title_en) > MAX_LENGTHS.title_en) {
-    errors.title_en = en
-      ? `Title (English) must be ${MAX_LENGTHS.title_en} characters or fewer (currently ${charCount(values.title_en)}).`
-      : `ចំណងជើង (អង់គ្លេស) ត្រូវតែមាន ${MAX_LENGTHS.title_en} តួអក្សរ ឬតិចជាង (បច្ចុប្បន្ន ${charCount(values.title_en)})។`;
-  } else if (!/[\p{L}\p{N}]/u.test(values.title_en)) {
-    errors.title_en = en
-      ? "Title (English) cannot be only spaces or symbols."
-      : "ចំណងជើង (អង់គ្លេស) មិនអាចជាចន្លោះទទេ ឬនិមិត្តសញ្ញាតែប៉ុណ្ណោះបានទេ។";
+  // The active language's title and description are required; the other
+  // language's fields are optional (length-checked only, below).
+  const titleField = `title_${language}`;
+  const descriptionField = `description_${language}`;
+  const titleLabel = fieldLabel(titleField, language);
+  const descriptionLabel = fieldLabel(descriptionField, language);
+
+  // Title (active language): required, max chars, not blank spaces or symbols only.
+  if (!values[titleField]) {
+    errors[titleField] = en
+      ? `${titleLabel} is required.`
+      : `តម្រូវឱ្យបំពេញ${titleLabel}។`;
+  } else if (charCount(values[titleField]) > MAX_LENGTHS[titleField]) {
+    errors[titleField] = en
+      ? `${titleLabel} must be ${MAX_LENGTHS[titleField]} characters or fewer (currently ${charCount(values[titleField])}).`
+      : `${titleLabel} ត្រូវតែមាន ${MAX_LENGTHS[titleField]} តួអក្សរ ឬតិចជាង (បច្ចុប្បន្ន ${charCount(values[titleField])})។`;
+  } else if (!/[\p{L}\p{N}]/u.test(values[titleField])) {
+    errors[titleField] = en
+      ? `${titleLabel} cannot be only spaces or symbols.`
+      : `${titleLabel} មិនអាចជាចន្លោះទទេ ឬនិមិត្តសញ្ញាតែប៉ុណ្ណោះបានទេ។`;
   }
 
-  // Description (English): required, max 1800 chars, cannot be blank spaces.
-  if (!values.description_en) {
-    errors.description_en = en
-      ? "Description (English) is required."
-      : "តម្រូវឱ្យបំពេញការពិពណ៌នា (អង់គ្លេស)។";
-  } else if (charCount(values.description_en) > MAX_LENGTHS.description_en) {
-    errors.description_en = en
-      ? `Description (English) must be ${MAX_LENGTHS.description_en} characters or fewer (currently ${charCount(values.description_en)}).`
-      : `ការពិពណ៌នា (អង់គ្លេស) ត្រូវតែមាន ${MAX_LENGTHS.description_en} តួអក្សរ ឬតិចជាង (បច្ចុប្បន្ន ${charCount(values.description_en)})។`;
+  // Description (active language): required, max chars, cannot be blank spaces.
+  if (!values[descriptionField]) {
+    errors[descriptionField] = en
+      ? `${descriptionLabel} is required.`
+      : `តម្រូវឱ្យបំពេញ${descriptionLabel}។`;
+  } else if (charCount(values[descriptionField]) > MAX_LENGTHS[descriptionField]) {
+    errors[descriptionField] = en
+      ? `${descriptionLabel} must be ${MAX_LENGTHS[descriptionField]} characters or fewer (currently ${charCount(values[descriptionField])}).`
+      : `${descriptionLabel} ត្រូវតែមាន ${MAX_LENGTHS[descriptionField]} តួអក្សរ ឬតិចជាង (បច្ចុប្បន្ន ${charCount(values[descriptionField])})។`;
   }
 
-  // Optional text fields: length checks only.
-  const optionalFields = [
-    "title_km",
-    "contributor_en",
-    "contributor_km",
-    "places_en",
-    "places_km",
-    "description_km",
-  ];
+  // All remaining fields are optional: length checks only. This includes the
+  // other language's title and description, plus both contributor/place fields.
+  const optionalFields = Object.keys(EMPTY_VALUES).filter(
+    (field) => field !== titleField && field !== descriptionField
+  );
   optionalFields.forEach((field) => {
     if (values[field] && charCount(values[field]) > MAX_LENGTHS[field]) {
       const label = fieldLabel(field, language);
@@ -147,6 +193,10 @@ function ContributeContent() {
   const [supabase] = useState(() => createClient());
   const [user, setUser] = useState(null);
   const [authLoading, setAuthLoading] = useState(true);
+
+  // Fixed field order (English first, then Khmer); the required `*` badge
+  // still follows the active language via isRequiredField.
+  const orderedFields = FIELD_ORDER;
 
   const [values, setValues] = useState(EMPTY_VALUES);
   const [photos, setPhotos] = useState([]);
@@ -340,191 +390,54 @@ function ContributeContent() {
                 <div style={styles.errorBanner}>{submitError}</div>
               )}
 
-              <div style={styles.field}>
-                <label htmlFor="title_en" style={styles.label}>
-                  {fieldLabel("title_en", language)}{" "}
-                  <span style={styles.required}>*</span>
-                </label>
-                <input
-                  id="title_en"
-                  type="text"
-                  value={values.title_en}
-                  onChange={handleTextChange("title_en")}
-                  onBlur={handleBlur("title_en")}
-                  placeholder={language === "en" ? "e.g. My First Bamboo Kite" : "ឧ. ខ្លែងឫស្សីដំបូងរបស់ខ្ញុំ"}
-                  style={styles.input}
-                />
-                {errors.title_en ? (
-                  <p style={styles.fieldError}>{errors.title_en}</p>
-                ) : (
-                  <span style={styles.counter}>
-                    {charCount(values.title_en)}/{MAX_LENGTHS.title_en}{" "}
-                    {language === "en" ? "characters" : "តួអក្សរ"}
-                  </span>
-                )}
-              </div>
-
-              <div style={styles.field}>
-                <label htmlFor="title_km" style={styles.label}>
-                  {fieldLabel("title_km", language)}
-                </label>
-                <input
-                  id="title_km"
-                  type="text"
-                  value={values.title_km}
-                  onChange={handleTextChange("title_km")}
-                  onBlur={handleBlur("title_km")}
-                  placeholder={language === "en" ? "e.g. My First Bamboo Kite" : "ឧ. ខ្លែងឫស្សីដំបូងរបស់ខ្ញុំ"}
-                  style={styles.input}
-                />
-                {errors.title_km ? (
-                  <p style={styles.fieldError}>{errors.title_km}</p>
-                ) : (
-                  <span style={styles.counter}>
-                    {charCount(values.title_km)}/{MAX_LENGTHS.title_km}{" "}
-                    {language === "en" ? "characters" : "តួអក្សរ"}
-                  </span>
-                )}
-              </div>
-
-              <div style={styles.field}>
-                <label htmlFor="contributor_en" style={styles.label}>
-                  {fieldLabel("contributor_en", language)}
-                </label>
-                <input
-                  id="contributor_en"
-                  type="text"
-                  value={values.contributor_en}
-                  onChange={handleTextChange("contributor_en")}
-                  onBlur={handleBlur("contributor_en")}
-                  placeholder={language === "en" ? "e.g. My Grandma" : "ឧ. យាយរបស់ខ្ញុំ"}
-                  style={styles.input}
-                />
-                {errors.contributor_en ? (
-                  <p style={styles.fieldError}>{errors.contributor_en}</p>
-                ) : (
-                  <span style={styles.counter}>
-                    {charCount(values.contributor_en)}/
-                    {MAX_LENGTHS.contributor_en} {language === "en" ? "characters" : "តួអក្សរ"}
-                  </span>
-                )}
-              </div>
-
-              <div style={styles.field}>
-                <label htmlFor="contributor_km" style={styles.label}>
-                  {fieldLabel("contributor_km", language)}
-                </label>
-                <input
-                  id="contributor_km"
-                  type="text"
-                  value={values.contributor_km}
-                  onChange={handleTextChange("contributor_km")}
-                  onBlur={handleBlur("contributor_km")}
-                  placeholder={language === "en" ? "e.g. My Grandma" : "ឧ. យាយរបស់ខ្ញុំ"}
-                  style={styles.input}
-                />
-                {errors.contributor_km ? (
-                  <p style={styles.fieldError}>{errors.contributor_km}</p>
-                ) : (
-                  <span style={styles.counter}>
-                    {charCount(values.contributor_km)}/
-                    {MAX_LENGTHS.contributor_km} {language === "en" ? "characters" : "តួអក្សរ"}
-                  </span>
-                )}
-              </div>
-
-              <div style={styles.field}>
-                <label htmlFor="places_en" style={styles.label}>
-                  {fieldLabel("places_en", language)}
-                </label>
-                <input
-                  id="places_en"
-                  type="text"
-                  value={values.places_en}
-                  onChange={handleTextChange("places_en")}
-                  onBlur={handleBlur("places_en")}
-                  placeholder={language === "en" ? "e.g. Siem Reap" : "ឧ. សៀមរាប"}
-                  style={styles.input}
-                />
-                {errors.places_en ? (
-                  <p style={styles.fieldError}>{errors.places_en}</p>
-                ) : (
-                  <span style={styles.counter}>
-                    {charCount(values.places_en)}/{MAX_LENGTHS.places_en}{" "}
-                    {language === "en" ? "characters" : "តួអក្សរ"}
-                  </span>
-                )}
-              </div>
-
-              <div style={styles.field}>
-                <label htmlFor="places_km" style={styles.label}>
-                  {fieldLabel("places_km", language)}
-                </label>
-                <input
-                  id="places_km"
-                  type="text"
-                  value={values.places_km}
-                  onChange={handleTextChange("places_km")}
-                  onBlur={handleBlur("places_km")}
-                  placeholder={language === "en" ? "e.g. Siem Reap" : "ឧ. សៀមរាប"}
-                  style={styles.input}
-                />
-                {errors.places_km ? (
-                  <p style={styles.fieldError}>{errors.places_km}</p>
-                ) : (
-                  <span style={styles.counter}>
-                    {charCount(values.places_km)}/{MAX_LENGTHS.places_km}{" "}
-                    {language === "en" ? "characters" : "តួអក្សរ"}
-                  </span>
-                )}
-              </div>
-
-              <div style={styles.field}>
-                <label htmlFor="description_en" style={styles.label}>
-                  {fieldLabel("description_en", language)}{" "}
-                  <span style={styles.required}>*</span>
-                </label>
-                <textarea
-                  id="description_en"
-                  rows={7}
-                  value={values.description_en}
-                  onChange={handleTextChange("description_en")}
-                  onBlur={handleBlur("description_en")}
-                  placeholder={language === "en" ? "Tell the story behind this kite..." : "រៀបរាប់រឿងរ៉ាវរបស់ខ្លែងនេះ..."}
-                  style={styles.textarea}
-                />
-                {errors.description_en ? (
-                  <p style={styles.fieldError}>{errors.description_en}</p>
-                ) : (
-                  <span style={styles.counter}>
-                    {charCount(values.description_en)}/
-                    {MAX_LENGTHS.description_en} {language === "en" ? "characters" : "តួអក្សរ"}
-                  </span>
-                )}
-              </div>
-
-              <div style={styles.field}>
-                <label htmlFor="description_km" style={styles.label}>
-                  {fieldLabel("description_km", language)}
-                </label>
-                <textarea
-                  id="description_km"
-                  rows={7}
-                  value={values.description_km}
-                  onChange={handleTextChange("description_km")}
-                  onBlur={handleBlur("description_km")}
-                  placeholder={language === "en" ? "Tell the story behind this kite..." : "រៀបរាប់រឿងរ៉ាវរបស់ខ្លែងនេះ..."}
-                  style={styles.textarea}
-                />
-                {errors.description_km ? (
-                  <p style={styles.fieldError}>{errors.description_km}</p>
-                ) : (
-                  <span style={styles.counter}>
-                    {charCount(values.description_km)}/
-                    {MAX_LENGTHS.description_km} {language === "en" ? "characters" : "តួអក្សរ"}
-                  </span>
-                )}
-              </div>
+              {orderedFields.map((field) => {
+                // The active language's title/description are required; every
+                // other field is optional. This drives both the order below and
+                // the * badge on the label.
+                const required = isRequiredField(field, language);
+                return (
+                  <div key={field} style={styles.field}>
+                    <label htmlFor={field} style={styles.label}>
+                      {fieldLabel(field, language)}
+                      {required && (
+                        <>
+                          {" "}
+                          <span style={styles.required}>*</span>
+                        </>
+                      )}
+                    </label>
+                    {isLongField(field) ? (
+                      <textarea
+                        id={field}
+                        rows={7}
+                        value={values[field]}
+                        onChange={handleTextChange(field)}
+                        onBlur={handleBlur(field)}
+                        placeholder={fieldPlaceholder(field, language)}
+                        style={styles.textarea}
+                      />
+                    ) : (
+                      <input
+                        id={field}
+                        type="text"
+                        value={values[field]}
+                        onChange={handleTextChange(field)}
+                        onBlur={handleBlur(field)}
+                        placeholder={fieldPlaceholder(field, language)}
+                        style={styles.input}
+                      />
+                    )}
+                    {errors[field] ? (
+                      <p style={styles.fieldError}>{errors[field]}</p>
+                    ) : (
+                      <span style={styles.counter}>
+                        {charCount(values[field])}/{MAX_LENGTHS[field]}{" "}
+                        {language === "en" ? "characters" : "តួអក្សរ"}
+                      </span>
+                    )}
+                  </div>
+                );
+              })}
 
               <div style={styles.field}>
                 <label htmlFor="photo" style={styles.label}>

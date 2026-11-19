@@ -7,6 +7,7 @@ import Header from "../../components/header.js";
 import { createClient } from "../../lib/supabase-client.js";
 import { formatSubmissionDate } from "../../lib/format-date.js";
 import { useLanguage } from "../../contexts/language-context.js";
+import { pickEntryText, fallbackLanguageLabel } from "../../lib/entry-text.js";
 
 const STATUS_LABELS = {
   pending: { en: "Pending", km: "កំពុងរង់ចាំការពិនិត្យ" },
@@ -49,6 +50,9 @@ const styles = {
   entryDescription: { fontSize: 14, color: "#475569", lineHeight: 1.5, margin: 0 },
   entryMeta: { display: "flex", flexWrap: "wrap", gap: 12, fontSize: 12, color: "#64748B" },
   metaItem: { backgroundColor: "#F8FAFC", padding: "4px 8px", borderRadius: 4, border: "1px solid #E2E8F0" },
+  // Subtle hint shown when a field's text was borrowed from the other language.
+  fallbackHint: { fontSize: 12, color: "#94A3B8", fontStyle: "italic", margin: 0 },
+  fallbackHintInline: { fontSize: 12, color: "#94A3B8", fontStyle: "italic", alignSelf: "center" },
   entryActions: { display: "flex", gap: 12 },
   viewButton: { padding: "8px 16px", backgroundColor: "#1E40AF", color: "#FFFFFF", textDecoration: "none", borderRadius: 6, fontSize: 14, fontWeight: 600 },
   editButton: { padding: "8px 16px", backgroundColor: "#F1F5F9", color: "#475569", textDecoration: "none", borderRadius: 6, fontSize: 14, fontWeight: 600, border: "1px solid #CBD5E1" },
@@ -173,7 +177,17 @@ function MyEntriesContent() {
 
   const getText = (entry, field) => {
     if (!entry) return "";
-    return entry[`${field}_${activeLanguage}`] || entry[`${field}_en`] || "";
+    return pickEntryText(entry, field, activeLanguage).text;
+  };
+
+  // Subtle "shown in <language>" hint when a field borrowed the other
+  // language's text. Returns "" when the active language had its own value.
+  const fallbackHint = (entry, field) => {
+    const { text, isFallback } = pickEntryText(entry, field, activeLanguage);
+    if (!text || !isFallback) return "";
+    const from = activeLanguage === "en" ? "km" : "en";
+    const name = fallbackLanguageLabel(from, activeLanguage);
+    return activeLanguage === "en" ? `shown in ${name}` : `បង្ហាញជា${name}`;
   };
 
   // Entries shown after the status filter bar is applied. "all" keeps every
@@ -426,11 +440,17 @@ function MyEntriesContent() {
                       <h3 style={styles.entryTitle}>{getText(entry, 'title') || "Untitled"}</h3>
                       <span style={getStatusBadgeStyle(entry.status || 'pending')}>{getStatusText(entry.status || 'pending')}</span>
                     </div>
+                    {fallbackHint(entry, 'title') && (
+                      <p style={styles.fallbackHint}>{fallbackHint(entry, 'title')}</p>
+                    )}
                     <p style={styles.entryDescription}>
                       {getText(entry, 'description')?.substring(0, 150) || "No description available"}...
                     </p>
                     <div style={styles.entryMeta}>
                       <span style={styles.metaItem}>Contributor: {getText(entry, 'contributor') || "Unknown"}</span>
+                      {fallbackHint(entry, 'contributor') && (
+                        <span style={styles.fallbackHintInline}>({fallbackHint(entry, 'contributor')})</span>
+                      )}
                       <span style={styles.metaItem}>Submitted: {formatSubmissionDate(entry.created_at)}</span>
                     </div>
                     {entry.review_note && entry.review_note.trim() && (
