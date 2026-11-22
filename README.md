@@ -80,6 +80,7 @@ supabase.rpc('review_entry', { entry_id, decision, note_text })
 - **Can reviewers take down published entries?** No. The reviewer queue only lists `pending` entries, and the review action only moves `pending → published` or `pending → returned`. A published entry cannot be pulled back through the review UI. If taking one down is needed, it would be a deliberate change, not an accident of the interface.
 - **What search shows a contributor about their own pending entries.** Search on `/browse` and the home page only reads `published` rows. A contributor's own pending entries are not searchable there; they appear only on `/my-entries`, which is filtered by owner. The archive's public face never leaks an unpublished entry.
 - - **How bilingual entries are submitted and displayed.** Instead of requiring every contributor to fill out both English and Khmer fields—or showing blank cards when a visitor switches languages—`/contribute` follows the active language toggle (EN or ខ្មែរ) so contributors can submit in the language they know best. Public pages display the entry in its submitted language regardless of the active toggle, accompanied by a text label underneath noting whether the entry is in Khmer or English so nothing disappears or breaks across language modes.
+- **Flexible Image Uploads:** Contributors can attach entry photos via standard file selection, drag-and-drop, or direct clipboard copy-and-paste (`Ctrl+V` / `Cmd+V`).
 
 ## 5. AI use
 

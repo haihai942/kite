@@ -241,9 +241,7 @@ const styles = {
   wrap: {
     width: "100%",
     margin: 0,
-    // Side/top padding is responsive and lives in app/globals.css (.page-wrap):
-    // 32px on desktop, 16px on phones, so cards are never squeezed or pushed
-    // off-screen. Removing it here lets the class win over inline styles.
+    padding: "40px 32px 80px",
     boxSizing: "border-box",
   },
   header: {
