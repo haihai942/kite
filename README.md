@@ -1,50 +1,66 @@
 # Kite — Khmer Living Archive
 
-A community archive for **Kite**, a Khmer game. It preserves how the game was played so future generations can still learn it. The archive is bilingual (English / ខ្មែរ), backed by Supabase, and lets signed-in contributors submit entries that a reviewer approves before they go public.
+A community archive for kite, a flying object game. It preserves how handmade kites were made and flown so future generations can still experience and learn the tradition. The archive is bilingual (English / ខ្មែរ), backed by Supabase, and lets signed-in contributors submit entries that a reviewer approves before they go public.
 
 Built in ICT 340 at AUPP.
 
 ## 1. What this is
 
-This is a small, public archive of Khmer kite-making and kite-flying memories. The entries come from my own childhood in Cambodia and from the people who taught me the game — my older brother and sister, my friends, and the places we played. Someone visiting the site can browse published entries, search by title, contributor, place or description, read each entry in English or Khmer, and — if they sign up — submit their own kite memory for a reviewer to check before it appears in the archive. The sentence I would say to a stranger: *I built a bilingual website that saves how Khmer kids used to make and fly kites, so the next generation can still find it.*
+This is a small, public archive of Khmer kite making and kite story memories drawn from my own childhood in Cambodia and from the people who taught me how to build and fly them, my older brother and sister, my friends. Users can browse published entries, search by title, contributor, place, or description, and read each entry in English or Khmer. Anyone who wants to add a story need to sign up, submit an entry with either English or Khmer details and photos, and wait for a reviewer to approve and publish it. Sincee many Khmer teenagers and adults do not read English, a bilingual interface lets them read these memories and share their own stories in Khmer.
+
 
 ## 2. Who it's for
 
-The people who would use this archive are Khmer speakers in Cambodia — students, parents, and older relatives who remember the game — and the diaspora who want a place to point at and say "this is what we did."
+The people who would use this archive are Khmer people, parents, and older relatives who remember making and flying kites as well as English speakers who want to explore and preserve these recollections.
 
-What I did for them, and what I changed because of them:
+What I built and adjusted for them:
 
-- **Khmer first.** Every entry stores an English and a Khmer version side by side, and the header toggle switches the whole site between EN and ខ្មែរ. Khmer text is treated as first-class content: it is never stripped, transliterated, or "fixed."
-- **Phones first.** The layout is inline-styled and stacks into a single column on narrow screens; the entry grid collapses from three columns to one. I tested the pages at phone width in the browser's device toolbar.
-- **Slow connections.** Entries are text plus one photo, not a media-heavy page. Photos are served with a one-hour cache header, and the lists show a plain loading state instead of blocking the page.
-- **Sources are named and credited.** Every entry records who it came from and where it happened (the contributor and place fields, in both languages), and the detail page shows both. The source of the collection as a whole lives in `collection.config.js` and is shown in the site's intro.
+- **Khmer first.** - **Khmer first.** A header toggle switches the entire site between English and Khmer. On `/contribute`, the form adapts to the active language toggle so contributors can write and submit their story in either Khmer or English without being forced to translate it first. On public pages, entries always render in the language they were submitted in even if the visitor toggles the site language—with a clear label underneath indicating whether the entry is written in Khmer or English.
+- **Phones first.** The layout stacks into a single column on narrow portrait screens and shifts to two columns on wider landscape phone viewports before expanding to three columns on desktop; I tested the pages at narrow phone width in the browser's device toolbar and on a phone viewport.
+- **Slow connections.** Entries prioritize text plus lightweight photos served from Supabase Storage with caching, and list views show a plain loading state instead of blocking the whole page.
+- **Sources are named and credited.** Only title, description, and image are required when submitting an entry, while contributor and places (in both English and Khmer) are optional and displayed on the detail page when provided. Overall archive attribution lives in collection.config.js (credited to "My siblings and friends") and appears in the site intro rather than as per-photo credits on each image.
 
 ## 3. How it works
 
-**The stack.** Next.js 15 (App Router) + React 19, deployed on Vercel. Supabase provides accounts (email + password), the `entries` table, and the `photos` storage bucket. `middleware.js` refreshes the Supabase session on every request so server components see a valid login.
+**Stack & layout.** Built with Next.js 15 (App Router) and React 19, deployed on Vercel. Supabase provides email/password accounts, PostgreSQL tables, and storage. `middleware.js` refreshes the Supabase auth session on each request so server components see a valid session.
 
-**The tables.**
+- `collection.config.js` — single source of truth for archive identity (`name`, `description`, `curator`, and `source` as `{ en, km }` objects) and the `pick(field, language)` helper that falls back to English when Khmer is missing.
+- `app/` — Next.js App Router pages for each route above; `layout.js` wraps every page in the language provider and header.
+- `components/` — shared UI (`header.js`, `entryCard.js`).
+- `contexts/language-context.js` — shared EN / ខ្មែរ language state.
+- `lib/` — Supabase clients (`supabase-client.js`, `supabase.js`), reviewer check (`reviewer-auth.js`), and helpers (`file-validation.js`, `format-date.js`).
+- `data/` — sample/reference data and assets.
 
-- **`entries`** — one row per archive entry. Columns used by the app: `id`, `owner` (the auth user's id, set from the session and never from a form field), `title_en`, `title_km`, `contributor_en`, `contributor_km`, `places_en`, `places_km`, `description_en`, `description_km`, `photo_urls` (array of public storage URLs), `status`, `review_note`, `created_at`. The database default for `status` is `pending`.
-- **`reviewers`** — one row per user who is allowed to review. `lib/reviewer-auth.js` checks it with `select user_id ... eq user_id ... maybeSingle()`; if a row exists, the user is a reviewer. The reviewer link in the header only appears for these users.
-- **Storage bucket `photos`** — public bucket; uploads go to `<user_id>/<random_uuid>.<ext>`, and the app stores the resulting public URL in `photo_urls`.
+**Tables & storage.**
 
-**The three statuses.**
+- **`entries`** — one row per archive entry: `id`, `owner` (auth user ID set from the session, never a form field), `title_en`, `title_km`, `contributor_en`, `contributor_km`, `places_en`, `places_km`, `description_en`, `description_km`, `photo_urls` (array of public storage URLs), `status`, `review_note`, `created_at`. Default `status` is `pending`.
+- **`reviewers`** — one row per authorized reviewer (`user_id`). `lib/reviewer-auth.js` checks membership for UI rendering (`select user_id ... eq user_id ... maybeSingle()`).
+- **Storage bucket `photos`** — stores uploaded entry photos under `<user_id>/<random_uuid>.<ext>` and saves public URLs in `photo_urls`.
+
+**Entry statuses.**
 
 | Status | Meaning |
 |---|---|
-| `pending` | Just submitted. Visible to its owner and to reviewers; hidden from the public. |
-| `published` | Approved by a reviewer. Shown on `/`, `/browse`, and the entry detail page. |
-| `returned` | Sent back by a reviewer with a `review_note` explaining what to fix. The owner can edit and resubmit. |
+| `pending` | Newly submitted. Visible to its owner and to reviewers; hidden from public browse/search. |
+| `published` | Approved by a reviewer. Shown on `/`, `/browse`, and `/entry/[id]`. |
+| `returned` | Sent back by a reviewer with a `review_note` explaining what to revise; the owner can edit and resubmit. |
 
-**The policies.** The browser queries Supabase directly (there is no custom API layer for entries), so row-level security is what decides who reads and writes what. As written in the app:
 
-- `/` and `/browse` query `entries` with `.eq('status', 'published')`, so the public list only ever asks for published rows.
-- `/my-entries` queries `.eq('owner', user.id)`, so a contributor only asks for their own rows.
-- `/reviewer-queue` queries `.eq('status', 'pending')`, and only renders for users in the `reviewers` table.
-- Edits and deletes go through `supabase.from('entries').update(...)` / `.delete().eq('id', ...)`; the comment in `my-entries/page.js` relies on RLS to make sure only the owner can do this.
 
-> **UNSURE:** the exact `CREATE POLICY` SQL for `entries` (and whether reviewers can read/update every row, or only `pending` ones) lives in the Supabase dashboard, not in this repo — `migrations/` is empty. The paragraph above describes what the client *asks for*; the policies that enforce it are configured in Supabase. Fill this in from the dashboard before the Q&A.
+
+**Access & RLS policies.** Row Level Security (RLS) is enabled on both `entries` and `reviewers` in Supabase so the database enforces read and write rules directly:
+
+- **`entries` table:**
+  - `anyone can read published entries` (`SELECT` for `public`) — allows logged-out and signed-in visitors to read published entries (plus owner/reviewer read conditions configured in the policy).
+  - `owners add their own entries` (`INSERT` for `authenticated`) — restricts inserts to the signed-in owner.
+  - `owners edit their own entries` (`UPDATE` for `authenticated`) — lets contributors edit only their own entries without self-publishing.
+  - `owners delete their own entries` (`DELETE` for `public`) — restricts deletion to the entry's owner (`auth.uid() = owner`).
+
+- **`reviewers` table:**
+  - `Only reviewers can read reviewers table` (`SELECT` for `authenticated`) — restricts reviewer lookups to authorized reviewer accounts.
+
+
+
 
 ## 4. Security decisions
 
@@ -55,7 +71,7 @@ supabase.rpc('review_entry', { entry_id, decision, note_text })
 ```
 
 - `decision` is `'published'` or `'returned'`; `note_text` is saved on the entry as `review_note`.
-- The reviewer queue treats anything other than a literal `true` return as a failure and leaves the entry in the queue.
+- The reviewer queue requires an explicit boolean true response (data === true) from the review_entry RPC before updating the UI; if the database returns false, null, or an error, the client treats the request as failed and leaves the entry in the pending queue.
 - The function lives in the database so the decision is made server-side. A hidden Publish button is not a security control: it only hides the UI. Anyone can open the console and call `update` directly — what actually stops them is the RLS policy and the `review_entry` function refusing the call. The gate is the database, not the button.
 
 **Decisions the briefs left to me:**
@@ -63,34 +79,52 @@ supabase.rpc('review_entry', { entry_id, decision, note_text })
 - **What a returned entry says.** Returning an entry *requires* a reason. The return modal will not submit an empty note, and the text is saved as `review_note` so the contributor can read exactly what to fix. Approving instead attaches a default thank-you note (`APPROVAL_NOTE`, translated).
 - **Can reviewers take down published entries?** No. The reviewer queue only lists `pending` entries, and the review action only moves `pending → published` or `pending → returned`. A published entry cannot be pulled back through the review UI. If taking one down is needed, it would be a deliberate change, not an accident of the interface.
 - **What search shows a contributor about their own pending entries.** Search on `/browse` and the home page only reads `published` rows. A contributor's own pending entries are not searchable there; they appear only on `/my-entries`, which is filtered by owner. The archive's public face never leaks an unpublished entry.
+- - **How bilingual entries are submitted and displayed.** Instead of requiring every contributor to fill out both English and Khmer fields—or showing blank cards when a visitor switches languages—`/contribute` follows the active language toggle (EN or ខ្មែរ) so contributors can submit in the language they know best. Public pages display the entry in its submitted language regardless of the active toggle, accompanied by a text label underneath noting whether the entry is in Khmer or English so nothing disappears or breaks across language modes.
 
 ## 5. AI use
 
-I built this with AI assistance throughout (Cline in VS Code, with an AI coding model driving the edits). Every commit that used it is marked `[ai assisted]` in the git log. This section replaces the Prompt Journal.
+prompt "Update the contribute and edit forms so that language priority adapts to the active lang toggle:
+Make the fields matching the active language (_km when lang === 'km', _en when lang === 'en') required with a * badge, and make the other language fields optional.
+Display the active language's input fields first on the form, followed by the secondary language fields."
+
+### Breakdown of Your Session
+- Technique: Conditional UI & form validation prompting (specifying dynamic required state and field ordering driven by the lang context state).
+- What came back (and where AI got it wrong):
+  1. Schema / database mismatch: The initial code updated the UI * required badges, but submissions failed when submitting Khmer-only entries because the database originally expected English fields to be required—so you had to update your database/table constraints to allow Khmer-primary submissions.
+  2. Dropped secondary fields: On the next pass, the model over-corrected and hid the inactive language fields completely (showing only English or only Khmer), breaking your requirement that both sets of fields stay visible so bilingual contributors can fill out both if they want.
+- What you did before accepting: You tested submitting a Khmer-only entry in the browser, caught the failed insert and missing secondary fields in the UI/diff, updated the database constraint/policy to allow Khmer-only entries, and re-prompted DeepSeek v4.1 flash to keep both language field groups rendered while dynamically prioritizing and requiring only the active language (_km or _en).
+
+prompt :I need to work on translations to make sure that when toggled to Khmer, everything is in Khmer. Let's do this one file at a time
+
+### Breakdown of Your Session
+- Technique: Incremental, file-by-file localization prompting (scoping translation work one file at a time so all visible UI text renders in Khmer when toggled).
+- What came back: The translation succeeded overall, but produced some mistranslations on buttons or navigation headers because Khmer translation data is limited or less accurate, requiring you to retype words for the AI to insert instead.
+- What you did before accepting: Because you read Khmer, you proofread key UI elements—such as buttons and action labels—so they would not sound awkward or confuse users (without rereading every single word), and then provided the corrected wording to fix them.
+
+I used AI assistance throughout the semester in VS Code via Cline, using DeepSeek (`v3.2` in the earlier setup/auth/search stage, and `v4.1 flash` for later form and translation updates) alongside Gemini (`3.5 flash lite`). Every commit that used AI assistance is marked `[ai assisted]` in the git log. This section replaces the Prompt Journal.
 
 | Model | Task | What I kept / changed | Verdict |
 |---|---|---|---|
-| UNSURE — *fill in the model name* | Scaffolding the four feature pages, the Supabase clients and the middleware | Kept the structure; rewrote the copy and the Khmer strings | Used as a base, then edited |
-| UNSURE — *fill in the model name* | Building the review queue and the `review_entry` call | Kept the strict `data !== true` check; rewrote the error messages | Kept as written |
-| UNSURE — *fill in the model name* | Khmer translations across pages | Kept most; corrected wording where it drifted from the entries | Kept with edits |
-| UNSURE — *fill in the model name* | This README's first draft | Kept the section order; rewrote the UNSURE spots against the code | Rewritten |
+| DeepSeek (`v3.2`) | Early setup: Supabase integration, search, and login / sign-up flows | Kept the core auth, search, and Supabase connection structure; adjusted policies and flows after review | Solid starting point with gemini review |
+| DeepSeek (`v4.1 flash`) | Reviewer gate setup, form language priority (`/contribute` and `/entry/[id]/edit`), and Khmer UI translations | Fixed DB constraints, restored hidden secondary fields, and proofread/corrected Khmer labels | Useful for iteration, required careful testing |
+| Gemini (`3.5 flash lite`) | Reviewing and planning code and Supabase RLS policies | Cross-checked policies and edge cases against actual app behavior | Helpful second check when verified in code |
 
-How I checked the work: I ran `npm run build` after each change, read the diff before committing, and tested the review flow with a second (stranger) account — signed out, signed in as a non-reviewer, and signed in as a reviewer — to confirm the gate held.
+How I checked the work: I ran `npm run dev` after each change, read the diff before committing, and tested the review flow with a second (stranger) account signed out, signed in as a non-reviewer, and signed in as a reviewer to confirm the gate held.
 
-> **UNSURE:** the model names and the split between "kept as written" and "rewritten" are mine to fill in from my actual sessions. I did not want to guess.
+
 
 ## 6. Sources and credits
 
 The archive's entries come from my own family and friends in Siem Reap. Each entry names its source in the `contributor` and `places` fields, in both languages:
 
-- **My big brother** — the black plastic "stealth" kite, Siem Reap.
-- **My big sister** — the bright pink sticker kite, Siem Reap.
+- **Eakhout** — the black plastic "stealth" kite, Siem Reap.
+- **kimlang** — the bright pink sticker kite, Siem Reap.
 - **My friend** — the backyard rice-field kite, flown behind the house.
 - **My friend** — the heart-decorated plastic kite, flown in the open space near the house.
 
-Photos I did not take myself are credited in the entry they belong to. The collection as a whole credits "My siblings and friends" in `collection.config.js`.
+Reference images were saved from the internet without credit given, while contributors can upload their own photos and state in detail whether the kite or memory is theirs or someone else's. Collection-level attribution is credited to `"My siblings and friends."` (`"បងប្អូន និងមិត្តភក្តិរបស់ខ្ញុំ។"`) under curator `Songhai Im` (`សុងហៃ អ៊ឺម`) in `collection.config.js`
 
-> **UNSURE:** the contributors are named by relationship ("My Big Brother", "My Friend A") rather than by personal name. If any of them gave permission to be named in full, add those names here; if someone asked not to be named, say so in the form the brief asks for (e.g. "a weaver in Takeo who asked not to be named").
+
 
 ## What it does
 
@@ -115,39 +149,40 @@ Photos I did not take myself are credited in the entry they belong to. The colle
 
 ## 7. Running it locally
 
-```bash
-git clone https://github.com/haihai942/kite.git
-cd kite
-npm install
-```
 
-Create a `.env.local` file in the project root (it is git-ignored — never commit it) with your Supabase project's values:
 
-```bash
-NEXT_PUBLIC_SUPABASE_URL=https://your-project-ref.supabase.co
-NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=your-publishable-key
-```
 
-See `.env.example` for the shape of these variables. Get the values from your Supabase project settings → API.
+1. Clone the repo and install dependencies:
 
-The publishable key is **public by design**: it is the key Supabase expects to ship in the browser bundle, and it is safe to expose because row-level security, not the key, protects the data. The secret/service-role key is never used in this repo and must never be committed.
+   ```bash
+    git clone https://github.com/haihai942/kite.git
+    cd kite
+    npm install
+    ```
 
-Then run it:
+2. I already have `.env.local` set up locally (it's git-ignored so I don't commit it). If you're running this on a fresh machine, check `.env.example` and add your Supabase project values from **Settings → API**:
 
-```bash
-npm run dev
-```
+   ```env
+   NEXT_PUBLIC_SUPABASE_URL=your-supabase-project-url
+   NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=your-supabase-publishable-key
+   ```
 
-Open http://localhost:3000.
+   The publishable key is meant to be public in the browser bundle—Row Level Security (RLS) is what protects the data. I don't use or commit any secret or service-role key here.
 
-For a production build:
+3. Start the dev server:
+
+   ```bash
+   npm run dev
+   ```
+
+   Then open `http://localhost:3000`.
+
+For production, Vercel builds and hosts the app automatically—I just added those same two environment variables under **Project → Settings → Environment Variables** in Vercel. If I ever want to test a production build locally on my machine instead, I run:
 
 ```bash
 npm run build
 npm run start
 ```
-
-On Vercel, add the same two environment variables under **Project → Settings → Environment Variables**.
 
 ## How it is put together
 
@@ -159,24 +194,7 @@ On Vercel, add the same two environment variables under **Project → Settings �
 - **`data/`** — sample entries and images.
 - **`middleware.js`** — refreshes the Supabase auth session on each request.
 
-## 8. Submission checklist
 
-- Live URL loads logged out and shows published entries only: UNSURE, (fill in URL)
-- A stranger cannot publish their own entry through the page or the console: UNSURE, tested (fill in date)
-- Logged out, the API returns nothing pending or returned: UNSURE, tested (fill in date)
-- Contributors can edit and delete only their own entries: yes — `/my-entries` filters by `owner`, and the delete comment relies on RLS
-- No secrets anywhere in the repo history: yes — checked with `git log --all -p` and a `git grep` over all commits for key patterns; `.env.local` is git-ignored
-- At least eight real entries, each with a credited source: UNSURE, (fill in count)
-- Khmer renders on every screen a user meets, including the queue: yes — every page has EN/ខ្មែរ labels
-- Works at phone width: UNSURE, tested on (fill in device or browser width)
-- No test entries, lorem ipsum or TODO comments in shipped pages: UNSURE, needs a final pass
-- No console errors on the main pages: UNSURE, needs a final pass
-- jesseorndorff is a collaborator on this repo: UNSURE, (fill in)
-- Supabase project restored and awake on (fill in date)
-- Demo video link opens in a private window: UNSURE, (fill in link)
-- Reflection pasted in the Canvas submission: UNSURE, (fill in)
-- Posted in the Show Your Archive discussion: UNSURE, (fill in)
-- Q&A slot booked for (fill in date and time)
 
 ## Rules of the road
 
