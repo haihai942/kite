@@ -196,6 +196,24 @@ npm run start
 - **`middleware.js`** — refreshes the Supabase auth session on each request.
 
 
+## Submission checklist
+
+- Live URL loads logged out and shows published entries only: yes, https://kite-psi.vercel.app
+- A stranger cannot publish their own entry through the page or the console: yes, tested 2026-11-22
+- Logged out, the API returns nothing pending or returned: yes, tested 2026-11-22
+- Contributors can edit and delete only their own entries: yes
+- No secrets anywhere in the repo history: yes, checked with `git log -p` (only public Supabase URL and anon key used in client)
+- At least eight real entries, each with a credited source: yes, 8
+- Khmer renders on every screen a user meets, including the queue: yes
+- Works at phone width: yes, tested on iPhone 13 Pro Max (428px viewport width)
+- No test entries, lorem ipsum or TODO comments in shipped pages: yes
+- No console errors on the main pages: yes
+- jesseorndorff is a collaborator on this repo: yes
+- Supabase project restored and awake on 2026-11-22
+- Demo video link opens in a private window: yes, <https://youtu.be/E5E9_lHILfc>
+- Reflection pasted in the Canvas submission: yes
+- Posted in the Show Your Archive discussion: yes
+- Q&A slot booked for Fri 04/12/2026 14:05 - 14:10
 
 ## Rules of the road
 
